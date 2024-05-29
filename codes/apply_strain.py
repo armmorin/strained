@@ -49,8 +49,9 @@ def main(vasp:dict = {}, **kwargs):
     db_name = "_".join(name_components[0:2])
     atoms = entry.toatoms()
 
-    # Create new variables depending on the values of the strain.
+    # Create new variables depending on the values of the strain. c = compressive, s = tensile, e = no strain
     ip_distortion = (1 + in_plane/100)
+    in_plane = int(in_plane)
     if ip_distortion < 1:
         name_ip = f"c{abs(in_plane)}"
     elif ip_distortion > 1:
@@ -59,7 +60,7 @@ def main(vasp:dict = {}, **kwargs):
         name_ip = f"e{in_plane}"
     
     op_distortion = (1 + out_of_plane/100)
-
+    out_of_plane = int(out_of_plane)
     if op_distortion < 1:
         name_op = f"c{abs(out_of_plane)}"
     elif op_distortion > 1:
@@ -94,9 +95,9 @@ def main(vasp:dict = {}, **kwargs):
     supercell.get_potential_energy()
     
     # Save the new structure in the new database
-    db_new_path = RunConfiguration.structures_dir / "hexag_perovs_strained.db"
+    db_new_path = "structures/hexag_perovs_strained.db"
     db_new = connect(db_new_path)
-    db_id = update_or_write(db_new, supercell, name=db_name, sys_id=kwargs["system_id"], dopant=dops, in_plane=ip_distortion, out_of_plane=op_distortion, dir=str(job_dir))
+    db_id = update_or_write(db_new, supercell, name=f"{db_name}_{name_ip}_{name_op}", sys_id=kwargs["system_id"], dopant=dops, in_plane=float(ip_distortion), out_of_plane=float(op_distortion), dir=str(job_dir))
     
     return True, {"db_id": db_id}
 

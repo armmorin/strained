@@ -39,8 +39,8 @@ sys_name = argv[1]
 # 1. For each name in the database, get the id of the entry.
 #    The id can be a single id or a list of ids.
 db_ids = [db_id for db_id in find_id_from_name(sys_name)]
-#RESOURCES = "24:1:xeon24el8_test:10m"
-RESOURCES = "56:1:xeon56:50h"
+RESOURCES = "48:1:xeon24el8_test:30m"
+#RESOURCES = "56:1:xeon56:50h"
 # 2. For each id, apply a range of in-plane strains.
 for db_id in db_ids:
     args["system_id"] = db_id
