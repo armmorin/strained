@@ -38,7 +38,8 @@ def main(vasp:dict = {}, **kwargs):
     db = connect(db_path)
     
     # We use the id of the entry in the database to get the structure
-    entry = db.get(kwargs["system_id"])
+    sys_id = kwargs["system_id"]
+    entry = db.get(sys_id)
     en_name = entry.name
     # Split the name of the entry to get the components of the name
     name_components = en_name.split("_")
@@ -71,35 +72,35 @@ def main(vasp:dict = {}, **kwargs):
     # Create a new directory to save the new structures
     job_dir = RunConfiguration.home / 'supercell' / db_name / name_ip / name_op
     job_dir.mkdir(parents=True, exist_ok=True)
+    direc = job_dir.relative_to(RunConfiguration.home)
     
-    # Make a supercell of the structure
-    supercell = atoms.repeat((2, 2, 1))
-    supercell.set_cell(supercell.get_cell() * [ip_distortion, ip_distortion, op_distortion], scale_atoms=True)
-    print(supercell)
-    supercell.set_pbc([True, True, True])
-    set_magnetic_moments(supercell)
+    # Apply the strain to the structure
+    atoms.set_cell(atoms.get_cell() * [ip_distortion, ip_distortion, op_distortion], scale_atoms=True)
+    print(atoms)
+    atoms.set_pbc([True, True, True])
+    set_magnetic_moments(atoms)
     
     # Create the VASP calculator
-    calc = create_Vasp_calc(supercell, 'PBEsol', job_dir, job_dir)
+    calc = create_Vasp_calc(atoms, 'PBEsol', direc, direc)
     calc.set(**vasp,
-            #nsw = 250,
-            #ibrion=2,
-            #eddifg = -0.05,
+            nsw = 250,
+            ibrion=2,
+            eddifg = -0.05,
             kpar = nnodes,
             ncore = ncore)
     
     # Get the potential energy of the new structure
-    traj_name = f"{job_dir}/{db_name}_{name_ip}_{name_op}.traj"
+    traj_name = f"{direc}/{db_name}_{name_ip}_{name_op}.traj"
     print(traj_name)
-    write(traj_name, supercell)
-    supercell.get_potential_energy()
+    write(traj_name, atoms)
+    atoms.get_potential_energy()
     
     # Save the new structure in the new database
     db_new_path = "structures/hexag_perovs_strained.db"
     db_new = connect(db_new_path)
-    db_id = update_or_write(db_new, supercell, name=f"{db_name}_{name_ip}_{name_op}", sys_id=kwargs["system_id"], dopant=dops, in_plane=float(ip_distortion), out_of_plane=float(op_distortion), dir=str(job_dir))
+    db_id = update_or_write(db_new, atoms, name=f"{db_name}_{name_ip}_{name_op}", sys_id=sys_id, dopant=dops, in_plane=ip_distortion, out_of_plane=float(op_distortion), dir=direc.as_posix())
     
-    return True, {"db_id": db_id}
+    return True, {"system_id": sys_id,"db_id": db_id}
 
 def update_or_write(db: SQLite3Database, atoms: Atoms, name: str, **kwargs):
     if db.count(name=name) > 0:

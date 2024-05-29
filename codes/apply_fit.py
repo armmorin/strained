@@ -31,39 +31,43 @@ def main(vasp= {}, **kwargs):
     db: SQLite3Database
     db = connect(db_path)
 
-    sys_id = kwargs["system_id"]
-    entries = db.select(sys_id=sys_id)
+    db_ids = list(kwargs['db_id'].values())
     values = []
-    for entry in entries:
+    
+    for db_id in db_ids: # It fails here. AttributeError: 'int' object has no attribute 'count'
+        entry = db.get(id=db_id)
         ip_dist = entry.in_plane
         values.append([entry.out_of_plane, entry.energy])
 
+    print(f"The in-plane strain is {ip_dist}.")
     values = np.array(values)
     # Sort the values by the out-of-plane strain from smallest to largest.
     values = values[values[:,0].argsort()]
+    print(f"Values: \n {values}")
     # Apply a polynomial fit to the energy values and get the minimum value of the polynomial.
     poly = np.polyfit(values[:,0], values[:,1], 2)
     # Get the zero of the polynomial
     op_min = -poly[1]/(2*poly[0])
 
-    row_db = old_db.get(id=sys_id)
+    row_db = old_db.get(id=kwargs['system_id'])
     print(f"System name: {row_db.name}")
-    atoms_row = row_db.toatoms()
-    min_atoms = atoms_row.copy()
-    min_atoms.repeat((2,2,1))
-    print(f"Size of the supercell: {min_atoms.get_cell_lengths_and_angles()}")
-    get_cell = min_atoms.cell
+    atoms = row_db.toatoms()
+    print(f"Size of the supercell: \n {atoms.get_cell()}")
+    get_cell = atoms.cell
     print(f"A distortion of {ip_dist} in the in-plane direction and {op_min} in the out-of-plane direction will be applied.")
     new_cell = get_cell * [ip_dist, ip_dist, op_min]
-    print(f"New size of the supercell: {new_cell}")
-    min_atoms.set_cell(new_cell, scale_atoms=True)
+    print(f"New size of the supercell: \n {new_cell}")
+    op_min = round(op_min, 2)
+    atoms.set_cell(new_cell, scale_atoms=True)
 
     # Create new variables depending on the values of the strain.
     ip_distortion = f"{(ip_dist - 1)*100:.2f}"
-    
-    if ip_distortion < 1:
+    print("ip_distortion=(ip_dist - 1)*100")
+    ip_distortion = round(float(ip_distortion))
+    print(f"{ip_distortion}=({ip_dist})-1*100")      
+    if ip_dist < 1:
         name_ip = f"c{abs(ip_distortion)}"
-    elif ip_distortion > 1:
+    elif ip_dist > 1:
         name_ip = f"s{ip_distortion}"
     else:
         name_ip = f"e{ip_distortion}"
@@ -73,9 +77,9 @@ def main(vasp= {}, **kwargs):
     # Split the name of the entry to get the components of the name
     en_name = row_db.name
     name_components = en_name.split("_")
-    dops = name_components[1][-1]
+    dops = int(name_components[1][-1])
     db_name = "_".join(name_components[0:2])
-    print(db_name)
+    print(f"System name: {db_name}")
     direc = Path(f"supercell/{db_name}/{name_ip}/fit")
     print(direc)
     direc.mkdir(parents=True, exist_ok=True)
@@ -83,24 +87,25 @@ def main(vasp= {}, **kwargs):
     print(min_name)
     # Write the new structure as a file
     atoms_dir = f"{direc}/{min_name}.traj"
-    write(atoms_dir, min_atoms)
+    write(atoms_dir, atoms)
     
-    calc = create_Vasp_calc(min_atoms, 'PBEsol', direc, direc)
-    set_magnetic_moments(min_atoms)
-    min_atoms.set_pbc([True, True, True])
+    calc = create_Vasp_calc(atoms, 'PBEsol', direc, direc)
+    set_magnetic_moments(atoms)
+    atoms.set_pbc([True, True, True])
     calc.set(**vasp,
-            #nsw = 250,
-            #ibrion=2,
-            #eddifg = -0.05,
+            nsw = 250,
+            ibrion=2,
+            eddifg = -0.05,
             kpar = nnodes,
             ncore = ncore)
-    #min_atoms.get_potential_energy()
-    gap, *_ = bandgap(min_atoms.calc, direct=True)
+    atoms.get_potential_energy()
+    print(f"Potential energy of the new structure: {atoms.get_potential_energy()}")
+    gap, *_ = bandgap(atoms.calc, direct=True)
     
     # Save the new structure in the new database
-    min_id = update_or_write(db_path, min_atoms, str(min_name), dopant=dops, ip_distortion=ip_dist, op_distortion=op_min, gap=gap, dir=str(direc))
+    min_id = update_or_write(db, atoms, name=min_name, dopant=dops, in_plane=ip_dist, out_of_plane=op_min, gap=gap, dir=direc.as_posix())
 
-    return True, {"db_id": min_id, "op_min": op_min, "ip_dist": ip_dist}
+    return True, {"db_id": min_id}
     
 def update_or_write(db: SQLite3Database, atoms: Atoms, name: str, **kwargs):
     if db.count(name=name) > 0:
@@ -108,4 +113,3 @@ def update_or_write(db: SQLite3Database, atoms: Atoms, name: str, **kwargs):
         db.update(ID, atoms, name=name, **kwargs)
         return ID
     return db.write(atoms, name=name, **kwargs)
-    
