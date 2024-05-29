@@ -21,7 +21,7 @@ nnodes = int(environ['SLURM_NNODES'])
 ncore = int(environ['NCORE'])
 
 def main(db_id: Optional[int] = None,
-         N_images: int=1, climb: bool=True, fmax: float=0.05, parallel: bool= False,
+         N_images: int=1, climb: bool=True, fmax: float=0.03, parallel: bool= False,
          fire: bool=True, vasp: dict={}, **kwargs) -> Tuple[bool, Optional[dict]]:
 
     """
