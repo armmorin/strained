@@ -85,7 +85,7 @@ def main(vasp:dict = {}, **kwargs):
     calc.set(**vasp,
             nsw = 250,
             ibrion=2,
-            eddifg = -0.05,
+            ediffg=-0.05,
             kpar = nnodes,
             ncore = ncore)
     

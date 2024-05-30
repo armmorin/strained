@@ -37,7 +37,7 @@ strain_range = np.linspace(-2, 2, WIDTH)
 #RESOURCES = "48:1:xeon24el8_test:30m"
 
 # Relax the structure and calculate the energy and the band gap.
-op_min = Task(current_dir / "apply_fit.py", args={}, resources="56:1:xeon56:50h")
+op_min = Task(current_dir / "apply_fit.py", args={}, resources="40:1:xeon40:50h")
 
 # Generate the vacancies on the new structure and calculate the energy.
 preneb = Task(current_dir / "create_vacancies.py", args={}, resources="56:1:xeon56:50h")
@@ -50,7 +50,7 @@ for db_id in find_id_from_name(sys_name):
     args = {"system_id": db_id}
     for i in strain_range:
         args["in_plane"]=i
-        task = Task(current_dir / "apply_strain.py", args=args.copy(), resources="56:1:xeon56:50h")
+        task = Task(current_dir / "apply_strain.py", args=args.copy(), resources="40:1:xeon40:50h")
         strain_swg = StaticWidthGroup(task, width=WIDTH)
         
         wf = Workflow([strain_swg, op_min, preneb, neb])
