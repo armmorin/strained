@@ -8,7 +8,7 @@ from ase.db.sqlite import SQLite3Database
 from ase.atoms import Atoms
 from ase.dft.bandgap import bandgap
 from herculestools.dft import RunConfiguration, create_Vasp_calc, set_magnetic_moments
-
+import matplotlib.pyplot as plt
 c = Console()
 nnodes = int(environ['SLURM_NNODES'])
 ncore = int(environ['NCORE'])
@@ -88,6 +88,16 @@ def main(vasp= {}, **kwargs):
     # Write the new structure as a file
     atoms_dir = f"{direc}/{min_name}.traj"
     write(atoms_dir, atoms)
+
+    # Generate a plot of the polynomial fit. UNTESTED
+    x = np.linspace(values[0,0], values[-1,0], 100)
+    y = np.polyval(poly, x)
+    plt.plot(x, y, label="Polynomial fit")
+    plt.scatter(values[:,0], values[:,1], label="Data points")
+    plt.xlabel("Out-of-plane strain")
+    plt.ylabel("Energy")
+    plt.title(f"Polynomial fit for {min_name}")
+    plt.savefig(f"{direc}/{min_name}.png")
     
     calc = create_Vasp_calc(atoms, 'PBEsol', direc, direc)
     set_magnetic_moments(atoms)
