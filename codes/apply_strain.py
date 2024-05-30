@@ -70,7 +70,7 @@ def main(vasp:dict = {}, **kwargs):
         name_op = f"e{out_of_plane}"
   
     # Create a new directory to save the new structures
-    job_dir = RunConfiguration.home / 'supercell' / db_name / name_ip / name_op
+    job_dir = RunConfiguration.home / 'best_fit' / db_name / name_ip / name_op
     job_dir.mkdir(parents=True, exist_ok=True)
     direc = job_dir.relative_to(RunConfiguration.home)
     

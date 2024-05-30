@@ -15,7 +15,7 @@ def find_id_from_name(name:str) -> list[int]:
         names = name.split(",")
         db_ids = []
         for n in names:
-            for row in db.select(name=n):
+            for row in db.select(name=f"{n}_r"):
                 db_ids.append(row.id)
         return db_ids
 
