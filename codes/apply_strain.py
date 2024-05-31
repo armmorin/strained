@@ -5,8 +5,8 @@ from rich.console import Console
 from ase.atoms import Atoms
 from ase.db import connect
 from ase.db.sqlite import SQLite3Database
-import numpy as np
-from perqueue.constants import INDEX_KW
+from ase.optimize import BFGS
+from ase.constraints import UnitCellFilter
 from herculestools.dft import (
     RunConfiguration,
     create_Vasp_calc,
@@ -21,13 +21,11 @@ def main(vasp:dict = {}, **kwargs):
 
     """
     This function applies a strain to a structure and saves the new structure in a new database.
-    The strain is applied to the in-plane and out-of-plane directions of the structure.
+    For each strain value applied to the structure, a mask is created to allow the structure to relax in the out-of-plane direction.
     """
 
-    # Take the in_plane and out_of_plane strain values
+    # Take the in_plane
     in_plane = kwargs["in_plane"]
-    out_of_plane_idx, *_ = kwargs[INDEX_KW]
-    out_of_plane = np.linspace(-2, 2, 5)[out_of_plane_idx]
     
     # Load the configuration
     RunConfiguration.load()
@@ -60,47 +58,41 @@ def main(vasp:dict = {}, **kwargs):
     else:
         name_ip = f"e{in_plane}"
     
-    op_distortion = (1 + out_of_plane/100)
-    out_of_plane = int(out_of_plane)
-    if op_distortion < 1:
-        name_op = f"c{abs(out_of_plane)}"
-    elif op_distortion > 1:
-        name_op = f"s{out_of_plane}"
-    else:
-        name_op = f"e{out_of_plane}"
-  
     # Create a new directory to save the new structures
-    job_dir = RunConfiguration.home / 'best_fit' / db_name / name_ip / name_op
+    job_dir = RunConfiguration.home / 'best_fit' / db_name / name_ip
     job_dir.mkdir(parents=True, exist_ok=True)
     direc = job_dir.relative_to(RunConfiguration.home)
     
     # Apply the strain to the structure
-    atoms.set_cell(atoms.get_cell() * [ip_distortion, ip_distortion, op_distortion], scale_atoms=True)
+    atoms.set_cell(atoms.get_cell() * [ip_distortion, ip_distortion, 1], scale_atoms=True)
     print(atoms)
     atoms.set_pbc([True, True, True])
     set_magnetic_moments(atoms)
     
+    # Apply a mask to the structure to allow the relaxation in the out-of-plane direction
+    mask = (0,0,1,0,0,0)
+    UnitCellFilter(atoms, mask=mask)
+  
     # Create the VASP calculator
     calc = create_Vasp_calc(atoms, 'PBEsol', direc, direc)
     calc.set(**vasp,
-            nsw = 250,
-            ibrion=2,
-            ediffg=-0.05,
             kpar = nnodes,
             ncore = ncore)
     
     # Get the potential energy of the new structure
-    traj_name = f"{direc}/{db_name}_{name_ip}_{name_op}.traj"
+    traj_name = f"{direc}/{db_name}_{name_ip}.traj"
     print(traj_name)
     write(traj_name, atoms)
     atoms.get_potential_energy()
+    opt = BFGS(atoms, logfile=f"{direc}/opt.log")
+    opt.run(fmax=0.05)
     
     # Save the new structure in the new database
     db_new_path = "structures/hexag_perovs_strained.db"
     db_new = connect(db_new_path)
-    db_id = update_or_write(db_new, atoms, name=f"{db_name}_{name_ip}_{name_op}", sys_id=sys_id, dopant=dops, in_plane=ip_distortion, out_of_plane=float(op_distortion), dir=direc.as_posix())
+    db_id = update_or_write(db_new, atoms, name=f"{db_name}_{name_ip}", dopant=dops, in_plane=ip_distortion, dir=direc.as_posix())
     
-    return True, {"system_id": sys_id,"db_id": db_id}
+    return True, {"db_id": db_id}
 
 def update_or_write(db: SQLite3Database, atoms: Atoms, name: str, **kwargs):
     if db.count(name=name) > 0:

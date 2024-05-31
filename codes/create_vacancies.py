@@ -33,8 +33,7 @@ class POSCARError(Exception):
 
 ## DEFINING A FUNCTION TO REGULATE THE PROCESS.
 def start_run(atoms: Atoms | List[Atoms], direc: Path,
-            vacancy: int, op_min: float, ip_dist: float,
-            vasp: dict={}) -> Atoms:
+            vacancy: int, vasp: dict={}) -> Atoms:
 
     # Making a dictionary of the paths to the files.
     files = {
@@ -57,9 +56,6 @@ def start_run(atoms: Atoms | List[Atoms], direc: Path,
             print(f"Supercell is generated in {direc.name}")
             sc = atoms.repeat((2, 2, 1))
             atoms = sc.copy()
-            distortion = [ip_dist, ip_dist, op_min]
-            new_cell = atoms.get_cell() * distortion
-            atoms.set_cell(new_cell, scale_atoms=True)
             atoms.pop(vacancy) # type: ignore
         else:
             print(f"Restarting from supercell structure in {direc.name}")
@@ -111,10 +107,6 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
     """
     
     RunConfiguration.load()
-    old_db_path = RunConfiguration.structures_dir / "hexag_perovs_re-nebs.db"
-    old_db: SQLite3Database
-    old_db = connect(old_db_path)
-    
     db_path = RunConfiguration.structures_dir / "hexag_perovs_strained.db"
     db: SQLite3Database
     db = connect(db_path)
@@ -125,9 +117,7 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
     name_components = en_name.split("_")
     name = "_".join(name_components[0:2])
     dops = int(name_components[1][-1])
-    atoms = old_db.get(f"name={name}_r").toatoms()
-    ip_dist = entry.in_plane
-    op_min = entry.out_of_plane
+    atoms = entry.toatoms()
 
     # Set up directories:
     i_direc = Path(RunConfiguration.home / f"preNEB/{name}_init")
@@ -135,12 +125,12 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
     f_direc.mkdir(parents=True, exist_ok=True)
 
     initial_vac = 30
-    init = start_run(atoms=atoms, direc=i_direc, op_min=op_min, ip_dist=ip_dist, vacancy=initial_vac,)# **kwargs)
+    init = start_run(atoms=atoms, direc=i_direc, vacancy=initial_vac)
     i_energy = init.get_potential_energy()
     print(f"The energy of the initial structure is: {i_energy:.3f} eV")
 
     final_vac = 31
-    final = start_run(atoms=atoms, direc=f_direc, op_min=op_min, ip_dist=ip_dist, vacancy=final_vac)#, **kwargs)
+    final = start_run(atoms=atoms, direc=f_direc, vacancy=final_vac)
     f_energy = final.get_potential_energy()
     print(f"The energy of the final structure is: {f_energy:.3f} eV")
 

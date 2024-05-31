@@ -1,5 +1,6 @@
-supercell/
+best_fit/
 preNEB/
 NEB/
 perqueue.runner.*
 plots/
+codes/test/
