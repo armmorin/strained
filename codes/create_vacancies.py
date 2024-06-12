@@ -95,15 +95,6 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
     """
     Perform the preNEB calculation for a given structure.
 
-    Args:
-        db_id (Optional[int]): The database id of the structure.
-        op_min (Optional[float]): The minimum value of the out-of-plane strain.
-        ip_dist (Optional[float]): The in-plane strain value.
-        **kwargs: Additional keyword arguments.
-
-    Returns:
-        Tuple[bool, Optional[dict]]: A tuple containing a boolean indicating whether the calculation was successful,
-        and an optional dictionary with the initial and final ids, initial and final vacancies.
     """
     
     RunConfiguration.load()
@@ -115,11 +106,20 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
     entry = db.get(kwargs['db_id'])
     en_name = entry.name
     name_components = en_name.split("_")
-    name = "_".join(name_components[0:2])
     dops = int(name_components[1][-1])
     atoms = entry.toatoms()
 
+    ip_distortion = entry.in_plane
+    in_plane = int((ip_distortion -1 ) * 100)
+    if ip_distortion < 1:
+        name_ip = f"c{abs(in_plane)}"
+    elif ip_distortion > 1:
+        name_ip = f"s{in_plane}"
+    else:
+        name_ip = f"e{in_plane}"
+        
     # Set up directories:
+    name = f"{'_'.join(name_components[0:2])}_{name_ip}"
     i_direc = Path(RunConfiguration.home / f"preNEB/{name}_init")
     f_direc = Path(i_direc.parent / f"{name}_final")
     f_direc.mkdir(parents=True, exist_ok=True)
@@ -138,8 +138,8 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
     dE = abs(i_energy - f_energy)
 
     # Save the result to the database
-    iID = update_or_write(db, init,  name+"_vi", dopant=dops, dir=i_direc.as_posix(), delta_e = dE)
-    fID = update_or_write(db, final, name+"_vf", dopant=dops, dir=f_direc.as_posix(), delta_e = dE)
+    iID = update_or_write(db, init,  name+"_vi", dopant=dops, dir=i_direc.as_posix(), in_plane=in_plane, delta_e = dE)
+    fID = update_or_write(db, final, name+"_vf", dopant=dops, dir=f_direc.as_posix(),  in_plane=in_plane, delta_e = dE)
 
     print(f"The energy difference between images is :{dE:.3f} eV")
 

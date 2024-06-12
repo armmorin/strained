@@ -69,18 +69,28 @@ def main(db_id: Optional[int] = None,
         name = '_'.join(names_list[:-1])
         print(name)
 
+    neb_dir = Path(RunConfiguration.get().home / 'NEB' / f"{name}")
+    neb_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Get the initial and final structures from the converged results. XXX: This is a temporary solution.
     initial_row = db.get(iID)
-    initial: Atoms = initial_row.toatoms()
-    final: Atoms = db.get(fID).toatoms()
+    initial_dir = initial_row.dir
+    initial= read(f"{initial_dir}/vasprun.xml", index=-1)
+    write(f"{neb_dir}/{name}_initial.traj", initial)
+    print(initial.get_atomic_numbers())
+    final_dir: Atoms = db.get(fID).dir
+    final = read(f"{final_dir}/vasprun.xml", index=-1)
+    write(f"{neb_dir}/{name}_final.traj", final)
+    print(final.get_atomic_numbers())
 
     # Order the endpoints correctly
     initial.append(initial.pop(vf-1))
+    print(initial.get_atomic_numbers())
     final.append(final.pop(vi))
-
+    print(final.get_atomic_numbers())
+    
     # Create images and master directory
     neb = create_neb_path(initial, final, N_images, climb=climb, parallel = parallel)
-    neb_dir = Path(RunConfiguration.get().home / 'NEB' / f"{name}")
-    neb_dir.mkdir(parents=True, exist_ok=True)
     write(f"{neb_dir}/{name}_start.traj", neb.images)
 
     # If parallel is True, then allow_shared_calculator = False
@@ -108,7 +118,7 @@ def main(db_id: Optional[int] = None,
         final = neb.images[-1]
         counter += 1
 
-    traj_file = neb_dir / f"{neb_dir.name}_{counter}_{path}"
+    traj_file = neb_dir / f"{neb_dir.name}_{counter}{path}"
 
     if counter > 10:
         fmax = fmax + 0.005

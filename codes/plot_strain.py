@@ -3,43 +3,58 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from perqueue import PersistentQueue
 
 working_dir = Path.cwd()
 
-db = connect('structures/.hexag_perovs_strained.db')
+db = connect('structures/hexag_perovs_strained.db')
 
-# Get the entries with the sys_id value
-sys_ids = []
-for entry in db.select(selection='sys_id'):
-    sys_id = entry.sys_id
+db_ids = []
+with PersistentQueue() as pq:
+    entries = pq.get_entries()
+        
+for entry in db.select(selection='db_id'):
     db_id = entry.id
-    sys_ids.append((sys_id, db_id))
 
-# Create a dictionary with the sys_id as key and the db_ids as values
+# Get the entries with the db_id
+    sys_id = pq.get_args()
+    db_ids.append((db_id))
+
+# Create a dictionary with the system_id as key and the db_ids as values
 ids_dict = {}
-for sys_id, db_id in sys_ids:
-    if sys_id in ids_dict:
-        ids_dict[sys_id].append(db_id)
-    else:
-        ids_dict[sys_id] = [db_id]
-
+for db_id in db_ids:
+    
 # Now we can loop over the sys_ids and get a fit curve for each
-df = pd.DataFrame(columns=['name','ip_strain', 'op_strain', 'energy'])
+df = pd.DataFrame(columns=['name','ip_strain','op_strain', 'energy'])
 values_dict = {}
 for sys_id in ids_dict.items():
     db_ids = sys_id[1]
+    out_of_plane = {}
+    energies = {}
     for db_id in db_ids:
         entry = db.get(id=db_id)
         name_components = entry.name.split('_')
         name = '_'.join(name_components[0:2])
         ip_strain = entry.in_plane
-        op_strain = entry.out_of_plane
-        energy = entry.energy
+        energies[ip_strain] = entry.energy
+        out_of_plane[ip_strain] = entry.toatoms().get_cell()[2,2]
+    
+        #out_of_plane.append((ip_strain,entry.toatoms().get_cell()[2,2]))
+    print(out_of_plane)
+    print(energies)
+    
+    # Use the out_of_plane value when ip_strain is 0 as a reference
+    ref_op_strain = [op_strain for ip_strain, op_strain in out_of_plane.items() if ip_strain == 0]
+    #ref_op_strain = [op_strain for ip_strain, op_strain in out_of_plane if ip_strain == 0][0]
+    # Get the out-of-plane strain by comparing the strained and unstrained lattice parameters
+    for ip_strain, op_strain in out_of_plane:
+        op_strain = (op_strain - ref_op_strain) / ref_op_strain * 100
+        print(f'{name} {ip_strain} {op_strain} {energies[ip_strain]}')
         # Store the values in a dictionary with the name as key
-        if name in values_dict:
-            values_dict[name].append((ip_strain, op_strain, energy))
-        else:
-            values_dict[name] = [(ip_strain, op_strain, energy)]
+        #if name in values_dict:
+        #    values_dict[name].append((ip_strain, op_strain, energy))
+        #else:
+        #    values_dict[name] = [(ip_strain, op_strain, energy)]
         
         # Store the values in a DataFrame
         df = df._append({'name': name, 'ip_strain': ip_strain, 'op_strain': op_strain, 'energy': f"{energy:.4f}"}, ignore_index=True)
