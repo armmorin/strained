@@ -41,7 +41,7 @@ def main(db_id: Optional[int] = None,
         and an optional dictionary with the trajectory file path and NEB ID.
     """
 
-    RunConfiguration.load()
+    # Connect to the database
     db_path = RunConfiguration.get().structures_dir / "hexag_perovs_strained.db"
     db: SQLite3Database
     db = connect(db_path)
@@ -91,7 +91,15 @@ def main(db_id: Optional[int] = None,
     
     # Create images and master directory
     neb = create_neb_path(initial, final, N_images, climb=climb, parallel = parallel)
-    write(f"{neb_dir}/{name}_start.traj", neb.images)
+    neb_dir = Path(RunConfiguration.get().home / 'NEB' / f"{name}")
+    neb_dir.mkdir(parents=True, exist_ok=True)
+
+    # The trajectory file must be written only once.
+    start_traj = neb_dir / f"{name}_start.traj"
+    if not start_traj.exists():
+        write(f"{neb_dir}/{name}_start.traj", neb.images)
+    else:
+        pass
 
     # If parallel is True, then allow_shared_calculator = False
     if parallel:

@@ -9,19 +9,19 @@ from perqueue.task_classes.task_groups import Workflow, StaticWidthGroup
 
 def find_id_from_name(name:str) -> list[int]:
     """ Find the id of the entry in the database from the name of the entry. """
-    db = connect(RunConfiguration.structures_dir / "hexag_perovs_re-nebs.db")
+    db = connect(RunConfiguration.home / "../discarded/structures/hexag_perovs_wdiscards.db")
     # If the entry comes with a separator, then it is a list of names.
     if "," in name:
         names = name.split(",")
         db_ids = []
         for n in names:
-            for row in db.select(name=f"{n}_r"):
+            for row in db.select(name=f"{n}_vi"):
                 db_ids.append(row.id)
         return db_ids
 
     # If the entry is a single name, then find the id of the entry.    
     elif name:
-        row = db.get(name=f"{name}_r")
+        row = db.get(name=f"{name}_vi")
         return [row.id]
 
     # If the name is not found, return None
@@ -35,25 +35,20 @@ sys_name = argv[1]
 WIDTH=5
 strain_range = np.linspace(-2, 2, WIDTH)
 #RESOURCES = "48:1:xeon24el8_test:30m"
-
-# Generate the vacancies on the new structure and calculate the energy.
-preneb = Task(current_dir / "create_vacancies.py", args={}, resources="56:1:xeon56:50h")
-#preneb = Task(current_dir / "create_vacancies.py", args={}, resources=RESOURCES)
+RESOURCES="192:1:epyc96:50h"
 
 # Calculate the NEB for the initial and final structures. Do one internal image, use climbing image. Save the barriers.
-neb = Task(current_dir / "neb.py", args={}, resources="112:1:xeon56:50h")
+neb = Task(current_dir / "neb.py", args={'name':sys_name}, resources=RESOURCES)
 
 for db_id in find_id_from_name(sys_name):
     # For each in-plane strain, apply a range of out-of-plane strains contained in a StaticWidthGroup.
     args = {"system_id": db_id}
     for i in strain_range:
         args["in_plane"]=i
-        strain = Task(current_dir / "apply_strain.py", args=args.copy(), resources="40:1:xeon40:50h")
-        #strain = Task(current_dir / "apply_strain.py", args=args.copy(), resources=RESOURCES)
-        #strain_swg = StaticWidthGroup(task, width=WIDTH)
-        
-        wf = Workflow([strain, preneb, neb])
+        strain = Task(current_dir / "strained_preneb.py", args=args.copy(), resources=RESOURCES)
+
+        wf = Workflow([strain, neb])
 
         with PersistentQueue() as pq:
             pq.submit(wf)
-        #break
+        

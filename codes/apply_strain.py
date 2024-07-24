@@ -24,9 +24,6 @@ def main(vasp:dict = {}, **kwargs):
     For each strain value applied to the structure, a mask is created to allow the structure to relax in the out-of-plane direction.
     """
 
-    # Take the in_plane
-    in_plane = kwargs["in_plane"]
-    
     # Load the configuration
     RunConfiguration.load()
     db_path = RunConfiguration.structures_dir / "hexag_perovs_re-nebs.db"
@@ -48,6 +45,9 @@ def main(vasp:dict = {}, **kwargs):
     db_name = "_".join(name_components[0:2])
     atoms = entry.toatoms()
 
+    # Take the in_plane
+    in_plane = kwargs["in_plane"]
+    
     # Create new variables depending on the values of the strain. c = compressive, s = tensile, e = no strain
     ip_distortion = (1 + in_plane/100)
     in_plane = int(in_plane)

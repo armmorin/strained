@@ -14,10 +14,15 @@ common_errors = {
     "bravais": "Inconsistent Bravais lattice" ,
     "fexcf": "ERROR FEXCF: supplied exchange-correlation",
     "ibrion0" : "Fatal error! IBRION=0",
-    "wavecar" : "ERROR: while reading WAVECAR",
     "lapack" : "LAPACK: Routine ZPOTRF failed",
     "subrot": "ERROR in subspace rotation",
+    "wavecar" : "ERROR: while reading WAVECAR", 
 }
+    
+wavecar_restarts = [
+   "ERROR: while reading eigenvalues from WAVECAR",
+   "ERROR: while reading plane wave coef. from WAVECAR"
+]
 
 # Common errors and their solutions by modifying the INCAR file
 common_solutions = {
@@ -37,7 +42,6 @@ common_solutions = {
 
 cwd = Path.cwd()
 db = connect('structures/hexag_perovs_strained.db')
-
 with PersistentQueue() as pq:
     entries = pq.get_entries()
 
@@ -45,7 +49,6 @@ s = Selection(states='f')
 targets = s.filter(entries)
 codes = [pq.get_code(en.key) for en in targets]
 codes = list(set(codes))
-print(f"Codes in the queue are {codes}")
 
 # PQ assigns the newest MQ id to its entry while still keeping the last state before the run was completed.
 errors_dict = dict()
@@ -79,9 +82,14 @@ for en in targets:
     pq_key = en.key
     code = pq.get_code(pq_key)
     status = en.state.serialize()
-    data = en.data
+    #data = en.data
     # Getting the name of the last successful entry
-    base_name = extract_data(en)
+    if extract_data(en) is not None:
+        base_name = extract_data(en)
+    else:
+        # Get the name of the entry from the ASE database using the args
+        db_id = pq.get_args(pq_key).get('db_id')
+        base_name = db.get(db_id).name[:-4]
 
     # Use the mq_id to get the directory of the calculation.
     error_file = Path(f"perqueue.runner.{mq_id}.err")
@@ -90,38 +98,52 @@ for en in targets:
     if error_file.is_file() and error_file.stat().st_size > 0:
         readlines = error_file.read_text().split('\n')
         print(f"Checking {error_file} for entries {en.key} with name {base_name} and status {status}")
-        if (time_out_line := [line for line in readlines if time_out in line]):
-            timeout_jobs.append(pq_key)
-        elif (backtrace in readlines):
-            timeout_jobs.append(pq_key)
-        elif (calc_failed_dir := [line.split(' ') for line in readlines if calc_failed in line][-1][-5]):
+        # if (time_out_line := [line for line in readlines if time_out in line]):
+        #     timeout_jobs.append(pq_key)
+        # elif (backtrace in readlines):
+        #     timeout_jobs.append(pq_key)
+        if (calc_failed_dir := [line.split(' ') for line in readlines if calc_failed in line][-1][-5]):
             calc_failed_dir = Path(calc_failed_dir)
             vaspout = calc_failed_dir / "vasp.out"
             if vaspout.is_file() and vaspout.stat().st_size > 0:
                 vaspout_lines = vaspout.read_text().split('\n')
                 next_lines = [line.strip().strip('|').strip(' ') for idx, line in enumerate(vaspout_lines) if matching_str in line for line in vaspout_lines[idx+2:-5]]
                 error_msg = " ".join(next_lines)
-                errors_dict[pq_key] = error_msg
+                # Save the error message and the directory of the calculation
+                errors_dict[pq_key] = error_msg , calc_failed_dir 
         else:
             pass
-
+# XXX: 
+# TODO:
+ 
 # Resubmit the jobs that timed out
 with PersistentQueue() as pq:
-    print(f"Resubmitting {len(timeout_jobs)} jobs because of time out")
-    for job in timeout_jobs:
-        en = pq.get_entry(job)
-        pq.resubmit(en)
+    # print(f"Resubmitting {len(timeout_jobs)} jobs because of time out")
+    # for job in timeout_jobs:
+    #     en = pq.get_entry(job)
+    #     pq.resubmit(en)
 
 # Now match the error messages with the common errors and resubmit the jobs
     print(f"Resubmitting {len(errors_dict)} jobs because of calculation failed")
-    for pq_key, error_msg in errors_dict.items():
+    for pq_key in errors_dict.keys():
         en = pq.get_entry(pq_key)
+        error_msg = errors_dict[pq_key][0]
+        job_dir = errors_dict[pq_key][1]
         new_args = pq.get_args(pq_key) 
+        # Check if the error message contains any of the common errors
+        if any([value in error_msg for value in wavecar_restarts]):           
+            # Remove the WAVECAR file and resubmit the job
+            print(f"Removing the WAVECAR file for {pq_key}")
+            wavecar = job_dir / "WAVECAR"
+            wavecar.unlink()
+            
         for key, value in common_errors.items():
             if value in error_msg:
                 new_args['vasp'] = common_solutions[key]
-                print(f"Resubmitting {pq_key} with new args {new_args}")
                 # Save the new arguments
                 pq.save_args(pq_key, new_args, False)
-                # Resubmit the job
-                pq.resubmit(en)
+                print(f"Error {key} found in {pq_key} the solution is {common_solutions[key]}")
+                print(f"Resubmitting {pq_key} with new args {new_args}")
+
+        # Resubmit the job
+        pq.resubmit(en)

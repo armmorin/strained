@@ -7,7 +7,7 @@ from ase.calculators.calculator import ReadError
 from ase import Atoms
 from ase.db import connect
 from ase.db.sqlite import SQLite3Database
-from ase.io import read
+from ase.io import read, write
 from typing import List
 
 from herculestools.dft import (
@@ -121,16 +121,19 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
     # Set up directories:
     name = f"{'_'.join(name_components[0:2])}_{name_ip}"
     i_direc = Path(RunConfiguration.home / f"preNEB/{name}_init")
+    i_direc.mkdir(parents=True, exist_ok=True)
     f_direc = Path(i_direc.parent / f"{name}_final")
     f_direc.mkdir(parents=True, exist_ok=True)
-
+    
     initial_vac = 30
     init = start_run(atoms=atoms, direc=i_direc, vacancy=initial_vac)
+    write(f"{i_direc / name_ip}.traj", init)
     i_energy = init.get_potential_energy()
     print(f"The energy of the initial structure is: {i_energy:.3f} eV")
 
     final_vac = 31
     final = start_run(atoms=atoms, direc=f_direc, vacancy=final_vac)
+    write(f"{f_direc / name_ip}.traj", final)
     f_energy = final.get_potential_energy()
     print(f"The energy of the final structure is: {f_energy:.3f} eV")
 
