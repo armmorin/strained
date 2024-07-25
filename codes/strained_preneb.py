@@ -99,7 +99,8 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
     
     # Connect to the reference database
     ref_db = RunConfiguration.home / "../discarded/structures/hexag_perovs_wdiscards.db"
-    work_db: SQLite3Database = RunConfiguration.structures_dir / "hexag_perovs_strained.db"
+    work_db= RunConfiguration.structures_dir / "hexag_perovs_strained.db"
+    db: SQLite3Database
     db = connect(ref_db)
 
     # Get the name of the structure from the database.
@@ -149,9 +150,11 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
     # Get the energy difference from the two positions.
     dE = abs(i_energy - f_energy)
 
+    to_db: SQLite3Database
+    to_db = connect(work_db)
     # Save the result to the database
-    iID = update_or_write(work_db, init,  name+"_vi", dopant=dops, dir=i_direc.as_posix(), in_plane=in_plane, delta_e = dE)
-    fID = update_or_write(work_db, final, name+"_vf", dopant=dops, dir=f_direc.as_posix(),  in_plane=in_plane, delta_e = dE)
+    iID = update_or_write(to_db, init,  name+"_vi", dopant=dops, dir=i_direc.as_posix(), in_plane=in_plane, delta_e = dE)
+    fID = update_or_write(to_db, final, name+"_vf", dopant=dops, dir=f_direc.as_posix(),  in_plane=in_plane, delta_e = dE)
 
     print(f"The energy difference between images is :{dE:.3f} eV")
 

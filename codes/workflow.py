@@ -35,17 +35,20 @@ sys_name = argv[1]
 WIDTH=5
 strain_range = np.linspace(-2, 2, WIDTH)
 #RESOURCES = "48:1:xeon24el8_test:30m"
-RESOURCES="192:1:epyc96:50h"
+CORES = 96 
+NODE = "epyc96"
+
+#RESOURCES="192:1:epyc96:50h"
 
 # Calculate the NEB for the initial and final structures. Do one internal image, use climbing image. Save the barriers.
-neb = Task(current_dir / "neb.py", args={'name':sys_name}, resources=RESOURCES)
+neb = Task(current_dir / "neb.py", args={'name':sys_name}, resources=f"{CORES*2}:1:{NODE}:50h")
 
 for db_id in find_id_from_name(sys_name):
     # For each in-plane strain, apply a range of out-of-plane strains contained in a StaticWidthGroup.
     args = {"system_id": db_id}
     for i in strain_range:
         args["in_plane"]=i
-        strain = Task(current_dir / "strained_preneb.py", args=args.copy(), resources=RESOURCES)
+        strain = Task(current_dir / "strained_preneb.py", args=args.copy(), resources=f"{CORES}:1:{NODE}:50h")
 
         wf = Workflow([strain, neb])
 
