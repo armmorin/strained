@@ -22,7 +22,7 @@ ncore = int(environ['NCORE'])
 
 def main(db_id: Optional[int] = None,
          N_images: int=1, climb: bool=True, fmax: float=0.03, parallel: bool= False,
-         fire: bool=True, vasp: dict={}, **kwargs) -> Tuple[bool, Optional[dict]]:
+         fire: bool=False, vasp: dict={}, **kwargs) -> Tuple[bool, Optional[dict]]:
 
     """
     Perform the main NEB (Nudged Elastic Band) calculation.
@@ -124,8 +124,8 @@ def main(db_id: Optional[int] = None,
                   method="improvedtangent", allow_shared_calculator=shared_calc)
         initial = neb.images[0]
         final = neb.images[-1]
-        counter += 1
 
+    counter += 1
     traj_file = neb_dir / f"{neb_dir.name}_{counter}{path}"
 
     if counter > 10:
