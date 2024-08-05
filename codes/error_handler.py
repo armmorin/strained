@@ -45,7 +45,7 @@ db = connect('structures/hexag_perovs_strained.db')
 with PersistentQueue() as pq:
     entries = pq.get_entries()
 
-s = Selection(states='f')
+s = Selection()
 targets = s.filter(entries)
 codes = [pq.get_code(en.key) for en in targets]
 codes = list(set(codes))
@@ -82,14 +82,14 @@ for en in targets:
     pq_key = en.key
     code = pq.get_code(pq_key)
     status = en.state.serialize()
-    #data = en.data
     # Getting the name of the last successful entry
     if extract_data(en) is not None:
         base_name = extract_data(en)
     else:
         # Get the name of the entry from the ASE database using the args
-        db_id = pq.get_args(pq_key).get('db_id')
-        base_name = db.get(db_id).name[:-4]
+        #print(f"Checking {en.key} with status {status}")
+        args = pq.get_args(en.key)
+        base_name = args['name']
 
     # Use the mq_id to get the directory of the calculation.
     error_file = Path(f"perqueue.runner.{mq_id}.err")

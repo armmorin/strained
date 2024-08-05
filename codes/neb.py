@@ -22,7 +22,7 @@ ncore = int(environ['NCORE'])
 
 def main(db_id: Optional[int] = None,
          N_images: int=1, climb: bool=True, fmax: float=0.03, parallel: bool= False,
-         fire: bool=False, vasp: dict={}, **kwargs) -> Tuple[bool, Optional[dict]]:
+         fire: bool=True, vasp: dict={}, **kwargs) -> Tuple[bool, Optional[dict]]:
 
     """
     Perform the main NEB (Nudged Elastic Band) calculation.
@@ -54,12 +54,12 @@ def main(db_id: Optional[int] = None,
     # Get the name of the structure from the database. 
     # If no initial or final ID is given, then the db_id is used.
     if iID == 0 or fID == 0:
-        print(db_id)
+        #print(db_id)
         db_name = db.get(db_id).name
         # Keep the name and the dopant position, and remove the type of job.
         names_list = db_name.split('_')
         name = '_'.join(names_list[:-1])
-        print(name)
+        #print(name)
         iID = db.get(selection=f"name={name}_vi").id
         fID = db.get(selection=f"name={name}_vf").id
 
@@ -67,7 +67,7 @@ def main(db_id: Optional[int] = None,
         db_name = db.get(iID).name
         names_list = db_name.split('_')
         name = '_'.join(names_list[:-1])
-        print(name)
+        #print(name)
 
     neb_dir = Path(RunConfiguration.get().home / 'NEB' / f"{name}")
     neb_dir.mkdir(parents=True, exist_ok=True)
@@ -76,18 +76,18 @@ def main(db_id: Optional[int] = None,
     initial_row = db.get(iID)
     initial_dir = initial_row.dir
     initial= read(f"{initial_dir}/vasprun.xml", index=-1)
-    write(f"{neb_dir}/{name}_initial.traj", initial)
-    print(initial.get_atomic_numbers())
+    #write(f"{neb_dir}/{name}_initial.traj", initial)
+    #print(initial.get_atomic_numbers())
     final_dir: Atoms = db.get(fID).dir
     final = read(f"{final_dir}/vasprun.xml", index=-1)
-    write(f"{neb_dir}/{name}_final.traj", final)
-    print(final.get_atomic_numbers())
+    #write(f"{neb_dir}/{name}_final.traj", final)
+    #print(final.get_atomic_numbers())
 
     # Order the endpoints correctly
     initial.append(initial.pop(vf-1))
-    print(initial.get_atomic_numbers())
+    #print(initial.get_atomic_numbers())
     final.append(final.pop(vi))
-    print(final.get_atomic_numbers())
+    #print(final.get_atomic_numbers())
     
     # Create images and master directory
     neb = create_neb_path(initial, final, N_images, climb=climb, parallel = parallel)
@@ -151,7 +151,10 @@ def main(db_id: Optional[int] = None,
     # Run path relaxation
     # Add a boolean for FIRE, and call it from the function's variables.
     if fire:
-        opt = FIRE(neb, trajectory=str(traj_file), logfile=f"{neb_dir}/{neb_dir.stem}_{counter}.log", downhill_check=True, force_consistent=True)
+        opt = FIRE(neb, trajectory=str(traj_file), logfile=f"{neb_dir}/{neb_dir.stem}_{counter}.log", 
+                   # Suggested by chatGPT:
+                   dt=0.05, maxstep=0.1, dtmax=0.3, Nmin=10, finc=1.05, fdec=0.4,
+                   downhill_check=True, force_consistent=False)
     else:
         opt = BFGS(neb, trajectory=str(traj_file), logfile=f"{neb_dir}/{neb_dir.stem}_{counter}.log")
     opt.run(fmax=fmax)
