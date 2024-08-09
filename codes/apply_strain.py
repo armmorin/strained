@@ -20,13 +20,12 @@ ncore = int(environ['NCORE'])
 def main(vasp:dict = {}, **kwargs):
 
     """
-    This function applies a strain to a structure and saves the new structure in a new database.
-    For each strain value applied to the structure, a mask is created to allow the structure to relax in the out-of-plane direction.
+    This function takes an entry from the database, creates a supercell with a given in-plane strain, 
+    and relaxes the structure in the out-of-plane direction by applying a mask to the structure.
     """
 
     # Load the configuration
-    RunConfiguration.load()
-    db_path = RunConfiguration.structures_dir / "hexag_perovs_re-nebs.db"
+    db_path = RunConfiguration.structures_dir / "hexag_perovs_wdiscards.db"
     db: SQLite3Database
 
     # Connect to the database
@@ -59,13 +58,16 @@ def main(vasp:dict = {}, **kwargs):
         name_ip = f"e{in_plane}"
     
     # Create a new directory to save the new structures
-    job_dir = RunConfiguration.home / 'best_fit' / db_name / name_ip
+    job_dir = RunConfiguration.home / 'strained' / db_name / name_ip
     job_dir.mkdir(parents=True, exist_ok=True)
     direc = job_dir.relative_to(RunConfiguration.home)
     
+    # Create the supercell with the in-plane strain
+    atoms.repeat([2,2,1])
+    
     # Apply the strain to the structure
     atoms.set_cell(atoms.get_cell() * [ip_distortion, ip_distortion, 1], scale_atoms=True)
-    print(atoms)
+    print(atoms.to_dict())
     atoms.set_pbc([True, True, True])
     set_magnetic_moments(atoms)
     
@@ -85,7 +87,7 @@ def main(vasp:dict = {}, **kwargs):
     write(traj_name, atoms)
     atoms.get_potential_energy()
     opt = BFGS(atoms, logfile=f"{direc}/opt.log")
-    opt.run(fmax=0.05)
+    opt.run(fmax=0.03)
     
     # Save the new structure in the new database
     db_new_path = "structures/hexag_perovs_strained.db"

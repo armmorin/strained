@@ -21,7 +21,7 @@ nnodes = int(environ['SLURM_NNODES'])
 ncore = int(environ['NCORE'])
 
 def main(db_id: Optional[int] = None,
-         N_images: int=1, climb: bool=True, fmax: float=0.03, parallel: bool= False,
+         N_images: int=3, climb: bool=True, fmax: float=0.03, parallel: bool= False,
          fire: bool=True, vasp: dict={}, **kwargs) -> Tuple[bool, Optional[dict]]:
 
     """
@@ -153,7 +153,15 @@ def main(db_id: Optional[int] = None,
     if fire:
         opt = FIRE(neb, trajectory=str(traj_file), logfile=f"{neb_dir}/{neb_dir.stem}_{counter}.log", 
                    # Suggested by chatGPT:
-                   dt=0.05, maxstep=0.1, dtmax=0.3, Nmin=10, finc=1.05, fdec=0.4,
+                   dt=0.05, 
+                   maxstep=0.1, 
+                   dtmax=0.2,
+                   Nmin=10,
+                   finc=1.05,
+                   fdec=0.4,
+                   astart=0.1, 
+                   fa=0.98, 
+                   a=0.1, 
                    downhill_check=True, force_consistent=False)
     else:
         opt = BFGS(neb, trajectory=str(traj_file), logfile=f"{neb_dir}/{neb_dir.stem}_{counter}.log")

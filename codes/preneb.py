@@ -53,10 +53,8 @@ def start_run(atoms: Atoms | List[Atoms], direc: Path,
     except (POSCARError, IndexError):
         # Add a check to see if the system already has vacancies from the atoms object.
         if len(atoms) == 32:
-            print(f"Supercell is generated in {direc.name}")
-            sc = atoms.repeat((2, 2, 1))
-            atoms = sc.copy()
-            atoms.pop(vacancy) # type: ignore
+            raise ValueError("The system is not a supercell")
+           
         else:
             print(f"Restarting from supercell structure in {direc.name}")
 
@@ -98,22 +96,18 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
     """
     
     # Connect to the reference database
-    ref_db = RunConfiguration.home / "../discarded/structures/hexag_perovs_wdiscards.db"
-    work_db= RunConfiguration.structures_dir / "hexag_perovs_strained.db"
+    db_path= RunConfiguration.structures_dir / "hexag_perovs_strained.db"
+    db = connect(db_path)
     db: SQLite3Database
-    db = connect(ref_db)
 
     # Get the name of the structure from the database.
-    print(ref_db.exists())
-    print(kwargs['system_id'])
-    ini_entry = db.get(kwargs['system_id'])
-    ini_atoms = ini_entry.toatoms()
-    en_name = ini_entry.name
+    print(f"DB id is: {(db_id:=kwargs['db_id'])}")
+    entry = db.get(db_id)
+    atoms = entry.toatoms()
+    en_name = entry.name
     name_components = en_name.split("_")
     dops = int(name_components[1][-1])
     db_name = "_".join(name_components[0:2])
-    fin_entry = db.get(name=f"{db_name}_vf")
-    fin_atoms = fin_entry.toatoms()
     
     # Take the in_plane
     in_plane = kwargs["in_plane"]
@@ -136,25 +130,25 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
     f_direc.mkdir(parents=True, exist_ok=True)
     
     initial_vac = 30
-    init = start_run(atoms=ini_atoms, direc=i_direc, vacancy=initial_vac)
-    write(f"{i_direc / name_ip}.traj", init)
+    init = start_run(atoms=atoms, direc=i_direc, vacancy=initial_vac)
+    if not (traj := f"{i_direc / name_ip}.traj").exists():
+        write(traj, init)
     i_energy = init.get_potential_energy()
     print(f"The energy of the initial structure is: {i_energy:.3f} eV")
 
     final_vac = 31
-    final = start_run(atoms=fin_atoms, direc=f_direc, vacancy=final_vac)
-    write(f"{f_direc / name_ip}.traj", final)
+    final = start_run(atoms=atoms, direc=f_direc, vacancy=final_vac)
+    if not (traj := f"{f_direc / name_ip}.traj").exists():
+        write(traj, final)
     f_energy = final.get_potential_energy()
     print(f"The energy of the final structure is: {f_energy:.3f} eV")
 
     # Get the energy difference from the two positions.
     dE = abs(i_energy - f_energy)
 
-    to_db: SQLite3Database
-    to_db = connect(work_db)
     # Save the result to the database
-    iID = update_or_write(to_db, init,  name+"_vi", dopant=dops, dir=i_direc.as_posix(), in_plane=in_plane, delta_e = dE)
-    fID = update_or_write(to_db, final, name+"_vf", dopant=dops, dir=f_direc.as_posix(),  in_plane=in_plane, delta_e = dE)
+    iID = update_or_write(db, init,  name+"_vi", dopant=dops, dir=i_direc.as_posix(), in_plane=in_plane, delta_e = dE)
+    fID = update_or_write(db, final, name+"_vf", dopant=dops, dir=f_direc.as_posix(),  in_plane=in_plane, delta_e = dE)
 
     print(f"The energy difference between images is :{dE:.3f} eV")
 
