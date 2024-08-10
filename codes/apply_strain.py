@@ -67,7 +67,7 @@ def main(vasp:dict = {}, **kwargs):
     
     # Apply the strain to the structure
     atoms.set_cell(atoms.get_cell() * [ip_distortion, ip_distortion, 1], scale_atoms=True)
-    print(atoms.to_dict())
+    print(atoms.todict())
     atoms.set_pbc([True, True, True])
     set_magnetic_moments(atoms)
     
