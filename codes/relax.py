@@ -58,27 +58,26 @@ def main(rattle_std: float=0.03,
         atoms[31].position += distance * atoms.cell[0] / atoms.cell.lengths()[0]
         atoms.wrap()
 
-        calc = create_VASP_calc(atoms, 'PBEsol', direc.name, direc)
-        calc.set(
-            kpar = nnodes,
-            ncore = ncore,
-            ibrion = 2,
-            ediffg = -0.05,
-            nsw = 250,
-            **vasp)
-
-        # Apply calculator to atoms
-        atoms.calc = calc
-        set_magnetic_moments(atoms)
-
     else:
         try:
             atoms = read(fl)
         except:
             pass
+
+    calc = create_VASP_calc(atoms, 'PBEsol', direc.name, direc)
+    set_magnetic_moments(atoms)
+    calc.set(
+        kpar = nnodes,
+        ncore = ncore,
+        ibrion = 2,
+        ediffg = -0.05,
+        nsw = 250,
+        **vasp)
     
     # Does the relaxation as well
     if lets_run:
+        # Apply calculator to atoms
+        atoms.calc = calc
         atoms.get_potential_energy()
 
     # Save the result to the database
