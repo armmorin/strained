@@ -120,9 +120,9 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
         
     # Set up directories:
     name = f"{'_'.join(name_components[0:2])}_{name_ip}"
-    i_direc = Path(RunConfiguration.home / f"preNEB/{name}_init")
+    i_direc = Path(RunConfiguration.home / f"preNEB/{name}/init")
     i_direc.mkdir(parents=True, exist_ok=True)
-    f_direc = Path(i_direc.parent / f"{name}_final")
+    f_direc = Path(i_direc.parent / f"{name}/final")
     f_direc.mkdir(parents=True, exist_ok=True)
     
     initial_vac = 30
@@ -141,8 +141,8 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
     dE = abs(i_energy - f_energy)
 
     # Save the result to the database
-    iID = update_or_write(db, init,  name+"_vi", dopant=dops, dir=i_direc.as_posix(), in_plane=in_plane, delta_e = dE)
-    fID = update_or_write(db, final, name+"_vf", dopant=dops, dir=f_direc.as_posix(),  in_plane=in_plane, delta_e = dE)
+    iID = update_or_write(db, init,  name+"_vi", dopant=dops, dir=i_direc.relative_to(RunConfiguration.home).as_posix(), in_plane=in_plane, delta_e = dE)
+    fID = update_or_write(db, final, name+"_vf", dopant=dops, dir=f_direc.relative_to(RunConfiguration.home).as_posix(), in_plane=in_plane, delta_e = dE)
 
     print(f"The energy difference between images is :{dE:.3f} eV")
 

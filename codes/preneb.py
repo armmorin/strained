@@ -47,7 +47,7 @@ def start_run(atoms: Atoms | List[Atoms], direc: Path,
         atoms = read(files['contcar'])
         atoms = read(files['vasprun'])
         print(f"A structure with {len(atoms)} atoms will start from {direc.name}")
-        setup_run(atoms, direc, vasp)
+        setup_run(atoms, direc, vacancy, vasp)
         
 
     except (POSCARError, IndexError):
@@ -68,7 +68,12 @@ def start_run(atoms: Atoms | List[Atoms], direc: Path,
 
     return atoms   
 
-def setup_run(atoms: Atoms | List[Atoms], direc: Path, vasp: dict = {}) -> Atoms:
+def setup_run(atoms: Atoms | List[Atoms], direc: Path, vacancy: int, vasp: dict = {}) -> Atoms:
+    # Check if the atoms object contains a vacancy
+    if len(atoms) == 128:
+        # Remove the vacancy from the atoms object
+        atoms.pop(vacancy)   
+    
     set_magnetic_moments(atoms)
     calc = create_Vasp_calc(atoms, 'PBEsol', direc)
     calc.set(**vasp,
@@ -105,8 +110,8 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
     entry = db.get(db_id)
     atoms = entry.toatoms()
     en_name = entry.name
+    dops = entry.dopant
     name_components = en_name.split("_")
-    dops = int(name_components[1][-1])
     db_name = "_".join(name_components[0:2])
     
     # Take the in_plane
@@ -124,21 +129,22 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
         
     # Set up directories:
     name = db_name + "_" + name_ip
-    i_direc = Path(RunConfiguration.home / f"preNEB/{name}_init")
+    i_direc: Path = RunConfiguration.home / f"preNEB/{name}/init"
     i_direc.mkdir(parents=True, exist_ok=True)
-    f_direc = Path(i_direc.parent / f"{name}_final")
+    i_direc.relative_to(RunConfiguration.home)
+    f_direc: Path = i_direc.parent / f"{name}/final"
     f_direc.mkdir(parents=True, exist_ok=True)
     
     initial_vac = 30
     init = start_run(atoms=atoms, direc=i_direc, vacancy=initial_vac)
-    if not (traj := f"{i_direc / name_ip}.traj").exists():
+    if not Path(traj := f"{i_direc / name_ip}.traj").is_file():
         write(traj, init)
     i_energy = init.get_potential_energy()
     print(f"The energy of the initial structure is: {i_energy:.3f} eV")
 
     final_vac = 31
     final = start_run(atoms=atoms, direc=f_direc, vacancy=final_vac)
-    if not (traj := f"{f_direc / name_ip}.traj").exists():
+    if not Path(traj := f"{f_direc / name_ip}.traj").is_file():
         write(traj, final)
     f_energy = final.get_potential_energy()
     print(f"The energy of the final structure is: {f_energy:.3f} eV")
@@ -147,8 +153,12 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
     dE = abs(i_energy - f_energy)
 
     # Save the result to the database
-    iID = update_or_write(db, init,  name+"_vi", dopant=dops, dir=i_direc.as_posix(), in_plane=in_plane, delta_e = dE)
-    fID = update_or_write(db, final, name+"_vf", dopant=dops, dir=f_direc.as_posix(),  in_plane=in_plane, delta_e = dE)
+    iID = update_or_write(db, init,  name+"_vi", dopant=dops, 
+                          dir=i_direc.relative_to(RunConfiguration.home).as_posix(), 
+                          in_plane=ip_distortion, delta_e = dE)
+    fID = update_or_write(db, final, name+"_vf", dopant=dops, 
+                          dir=f_direc.relative_to(RunConfiguration.home).as_posix(), 
+                          in_plane=ip_distortion, delta_e = dE)
 
     print(f"The energy difference between images is :{dE:.3f} eV")
 

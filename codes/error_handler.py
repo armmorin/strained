@@ -26,7 +26,10 @@ wavecar_restarts = [
 
 # Common errors and their solutions by modifying the INCAR file
 common_solutions = {
-    "eddav":    {'algo': 'VeryFast'},
+    "eddav":    {'algo': 'VeryFast'
+                 #'lapack': False,
+                 #'lplane': False
+                 },
     "zbrent":   {'potim': 0.25,
                 'addgrid' : True},
     "bravais":  {'symprec': 1e-03,
@@ -45,7 +48,7 @@ db = connect('structures/hexag_perovs_strained.db')
 with PersistentQueue() as pq:
     entries = pq.get_entries()
 
-s = Selection()
+s = Selection(states='f')
 targets = s.filter(entries)
 codes = [pq.get_code(en.key) for en in targets]
 codes = list(set(codes))
@@ -134,8 +137,8 @@ with PersistentQueue() as pq:
         if any([value in error_msg for value in wavecar_restarts]):           
             # Remove the WAVECAR file and resubmit the job
             print(f"Removing the WAVECAR file for {pq_key}")
-            wavecar = job_dir / "WAVECAR"
-            wavecar.unlink()
+            if (wavecar := job_dir / "WAVECAR").is_file():
+                wavecar.unlink()
             
         for key, value in common_errors.items():
             if value in error_msg:

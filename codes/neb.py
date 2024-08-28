@@ -195,7 +195,7 @@ def main(db_id: Optional[int] = None,
     db_id = update_or_write(db, initial, name=f"{name}_neb", dir = str(neb_dir), forward_e = Ef, delta_e = dE, reverse_e = Er, barrier = Emax, neg_barrier = neg_barrier)
 
     print(f"The energy barrier is :{Emax:.3f}")
-    return True, {'trajectory': str(traj_file.relative_to(neb_dir)), 'db_id': int(db_id)}
+    return True, {'trajectory': traj_file.name, 'db_id': db_id}
 
 def setup_run(atoms: Atoms, direc: Path, vasp: dict = {}) -> Atoms:
     atoms.calc = create_Vasp_calc(atoms, 'PBEsol', direc)

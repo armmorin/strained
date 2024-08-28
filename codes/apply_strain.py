@@ -5,8 +5,10 @@ from rich.console import Console
 from ase.atoms import Atoms
 from ase.db import connect
 from ase.db.sqlite import SQLite3Database
-from ase.optimize import BFGS
+from ase.optimize import FIRE
 from ase.constraints import UnitCellFilter
+from perqueue.constants import INDEX_KW
+from ase.io.trajectory import Trajectory
 from herculestools.dft import (
     RunConfiguration,
     create_Vasp_calc,
@@ -25,28 +27,28 @@ def main(vasp:dict = {}, **kwargs):
     """
 
     # Load the configuration
-    db_path = RunConfiguration.structures_dir / "hexag_perovs_wdiscards.db"
+    db_path = RunConfiguration.structures_dir / "hexag_perovs_strained.db"
     db: SQLite3Database
 
     # Connect to the database
     db = connect(db_path)
     
     # We use the id of the entry in the database to get the structure
-    sys_id = kwargs["system_id"]
-    entry = db.get(sys_id)
+    db_id = kwargs["db_id"]
+    entry = db.get(db_id)
     en_name = entry.name
+    dops = entry.dopant
+    
     # Split the name of the entry to get the components of the name
     name_components = en_name.split("_")
-    # Take the dopant position from the last character of the second component of the name
-    dops = int(name_components[1][-1])
     
     # Get the new name of the job with the first two components of the name
     db_name = "_".join(name_components[0:2])
     atoms = entry.toatoms()
-
-    # Take the in_plane
-    in_plane = kwargs["in_plane"]
     
+    # Take the in_plane from the INDEX_KW so that it matches the index of the strain_range
+    in_plane = kwargs['in_plane'][INDEX_KW]
+        
     # Create new variables depending on the values of the strain. c = compressive, s = tensile, e = no strain
     ip_distortion = (1 + in_plane/100)
     in_plane = int(in_plane)
@@ -58,43 +60,61 @@ def main(vasp:dict = {}, **kwargs):
         name_ip = f"e{in_plane}"
     
     # Create a new directory to save the new structures
-    job_dir = RunConfiguration.home / 'strained' / db_name / name_ip
+    job_dir = RunConfiguration.home / 'distorted' / db_name / name_ip
     job_dir.mkdir(parents=True, exist_ok=True)
     direc = job_dir.relative_to(RunConfiguration.home)
     
-    # Create the supercell with the in-plane strain
-    atoms.repeat([2,2,1])
+    # Check if there is not an already relaxed structure.
+    counter = len(trajectories := [traj for traj in (job_dir.glob("*.traj")) if traj.stat().st_size > 0])
     
-    # Apply the strain to the structure
-    atoms.set_cell(atoms.get_cell() * [ip_distortion, ip_distortion, 1], scale_atoms=True)
-    print(atoms.todict())
-    atoms.set_pbc([True, True, True])
-    set_magnetic_moments(atoms)
+    # Apply a mask to the structure to relax. The mask can have different shapes.
+    mask_dict = {'biaxial': (0,0,1,0,0,0),
+            'uniaxial': (0,1,1,0,0,0)}
     
-    # Apply a mask to the structure to allow the relaxation in the out-of-plane direction
-    mask = (0,0,1,0,0,0)
-    UnitCellFilter(atoms, mask=mask)
+    # Depending on the type of mask we apply the strain to the structure
+    distortion_dict = {'biaxial': (ip_distortion, ip_distortion, 1),
+                        'uniaxial': (ip_distortion, 1, 1)}
+    
+    # From the reading of the mask keyword, we get the mask to apply to the structure.
+    for mask in mask_dict:
+        distortion = distortion_dict[mask]
+        
+        # If there are no previous trajectory files generated, we apply the strain from the beginning
+        if  counter == 0:
+            atoms.set_cell(atoms.get_cell() * distortion, scale_atoms=True)
+            atoms.set_pbc([True, True, True])
+            set_magnetic_moments(atoms)
+
+        else:
+            # Sort the trajectories by the most recent
+            trajectories.sort(key=lambda x: x.stat().st_mtime)
+            # Get the last atoms object from the most recent trajectory
+            atoms = Trajectory(trajectories[-1], 'r')[-1]
+        
+        # Lastly, we apply the mask to the structure
+        ucf = UnitCellFilter(atoms, mask=mask)
   
     # Create the VASP calculator
-    calc = create_Vasp_calc(atoms, 'PBEsol', direc, direc)
+    calc = create_Vasp_calc(atoms, 'PBEsol', direc)
     calc.set(**vasp,
             kpar = nnodes,
             ncore = ncore)
     
     # Get the potential energy of the new structure
-    traj_name = f"{direc}/{db_name}_{name_ip}.traj"
+    traj_name = f"{direc}/{db_name}_{name_ip}_{counter}.traj"
     print(traj_name)
-    write(traj_name, atoms)
+    traj = Trajectory(traj_name, 'w', atoms)
     atoms.get_potential_energy()
-    opt = BFGS(atoms, logfile=f"{direc}/opt.log")
+    opt = FIRE(ucf, logfile=f"{direc}/{db_name}_{name_ip}.log",
+               #dt=0.01, maxstep=0.05, dtmax=0.2, Nmin=15, finc=1.03, fdec=0.6
+               )
+    opt.attach(traj)
     opt.run(fmax=0.03)
     
     # Save the new structure in the new database
-    db_new_path = "structures/hexag_perovs_strained.db"
-    db_new = connect(db_new_path)
-    db_id = update_or_write(db_new, atoms, name=f"{db_name}_{name_ip}", dopant=dops, in_plane=ip_distortion, dir=direc.as_posix())
+    new_id = update_or_write(db, atoms, name=f"{db_name}_{name_ip}", dopant=dops, in_plane=ip_distortion, dir=direc.as_posix())
     
-    return True, {"db_id": db_id}
+    return True, {"db_id": new_id, "in_plane": in_plane}
 
 def update_or_write(db: SQLite3Database, atoms: Atoms, name: str, **kwargs):
     if db.count(name=name) > 0:
