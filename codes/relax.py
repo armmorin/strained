@@ -27,6 +27,7 @@ def main(rattle_std: float=0.03,
     db_new_path = "structures/hexag_perovs_strained.db"
     
     db: SQLite3Database
+    
     # Load the structure and extract fields
     with connect(db_path) as db:
         entry = db.get(kwargs['sys_id'])
@@ -40,17 +41,13 @@ def main(rattle_std: float=0.03,
     lets_run = True
     direc: Path = RunConfiguration.home / f"relaxations/{name}"
     direc.mkdir(parents=True, exist_ok=True)
+    
     if ((outcar := direc/"vasp.out")).exists():
         outcar_txt = outcar.read_text()
         if "reached required accuracy - stopping structural energy minimisation" in outcar_txt:
             lets_run = False
     
-    if ((fl := direc/'vasprun.xml')).exists():
-        try:
-            atoms = read(fl)
-        except:
-            pass
-    else:
+    if not ((fl := direc/'vasprun.xml')).exists():
         # Create the supercell, and rattle all atoms but the specific oxygen
         atoms = atoms.repeat([2, 2, 1])        
         cn = FixAtoms([31])
@@ -74,6 +71,12 @@ def main(rattle_std: float=0.03,
         atoms.calc = calc
         set_magnetic_moments(atoms)
 
+    else:
+        try:
+            atoms = read(fl)
+        except:
+            pass
+    
     # Does the relaxation as well
     if lets_run:
         atoms.get_potential_energy()
