@@ -50,29 +50,29 @@ def main(rattle_std: float=0.03,
             atoms = read(fl)
         except:
             pass
-    
-    # Create the supercell, and rattle all atoms but the specific oxygen
-    atoms = atoms.repeat([2, 2, 1])        
-    cn = FixAtoms([31])
-    atoms.set_constraint(cn)
-    atoms.rattle(rattle_std)  # <--- Tolerance #1
-    atoms.set_constraint()
-    # \/ Parameter #3
-    atoms[31].position += distance * atoms.cell[0] / atoms.cell.lengths()[0]
-    atoms.wrap()
+    else:
+        # Create the supercell, and rattle all atoms but the specific oxygen
+        atoms = atoms.repeat([2, 2, 1])        
+        cn = FixAtoms([31])
+        atoms.set_constraint(cn)
+        atoms.rattle(rattle_std)  # <--- Tolerance #1
+        atoms.set_constraint()
+        # \/ Parameter #3
+        atoms[31].position += distance * atoms.cell[0] / atoms.cell.lengths()[0]
+        atoms.wrap()
 
-    calc = create_VASP_calc(atoms, 'PBEsol', direc.name, direc)
-    calc.set(
-        kpar = nnodes,
-        ncore = ncore,
-        ibrion = 2,
-        ediffg = -0.05,
-        nsw = 250,
-        **vasp)
+        calc = create_VASP_calc(atoms, 'PBEsol', direc.name, direc)
+        calc.set(
+            kpar = nnodes,
+            ncore = ncore,
+            ibrion = 2,
+            ediffg = -0.05,
+            nsw = 250,
+            **vasp)
 
-    # Apply calculator to atoms
-    atoms.calc = calc
-    set_magnetic_moments(atoms)
+        # Apply calculator to atoms
+        atoms.calc = calc
+        set_magnetic_moments(atoms)
 
     # Does the relaxation as well
     if lets_run:
