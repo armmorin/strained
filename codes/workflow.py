@@ -37,7 +37,7 @@ masks = ['biaxial', 'uniaxial']
 neb = Task(current_dir / "neb.py", args=None, resources=NEB_RSC)
 preneb = Task(current_dir / "preneb.py", args=None, resources=REL_RSC)
 
-swf = Workflow([neb, preneb])
+swf = Workflow([preneb, neb])
         
 for name in sys_name:
     db_id = find_id_from_name(name)[0]

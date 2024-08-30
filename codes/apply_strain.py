@@ -60,7 +60,7 @@ def main(vasp:dict = {}, **kwargs):
         name_ip = f"e{in_plane}"
     
     # Create a new directory to save the new structures
-    job_dir = RunConfiguration.home / 'distorted' / db_name / name_ip
+    job_dir = RunConfiguration.home / 'distorted' / db_name / kwargs["mask"] / name_ip
     job_dir.mkdir(parents=True, exist_ok=True)
     direc = job_dir.relative_to(RunConfiguration.home)
     
@@ -112,7 +112,7 @@ def main(vasp:dict = {}, **kwargs):
     opt.run(fmax=0.03)
     
     # Save the new structure in the new database
-    new_id = update_or_write(db, atoms, name=f"{db_name}_{name_ip}", dopant=dops, in_plane=ip_distortion, dir=direc.as_posix())
+    new_id = update_or_write(db, atoms, name=f"{db_name}_{kwargs['mask']}_{name_ip}", dopant=dops, in_plane=ip_distortion, mask=kwargs['mask'], dir=direc.as_posix())
     
     return True, {"db_id": new_id, "in_plane": in_plane}
 

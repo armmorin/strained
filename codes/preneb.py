@@ -128,7 +128,7 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
         name_ip = f"e{in_plane}"
         
     # Set up directories:
-    name = db_name + "_" + name_ip
+    name = db_name + "_" + kwargs['mask'] + "_" + name_ip
     i_direc: Path = RunConfiguration.home / f"preNEB/{name}/init"
     i_direc.mkdir(parents=True, exist_ok=True)
     i_direc.relative_to(RunConfiguration.home)
@@ -155,9 +155,11 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
     # Save the result to the database
     iID = update_or_write(db, init,  name+"_vi", dopant=dops, 
                           dir=i_direc.relative_to(RunConfiguration.home).as_posix(), 
+                          mask=entry.mask,
                           in_plane=ip_distortion, delta_e = dE)
     fID = update_or_write(db, final, name+"_vf", dopant=dops, 
                           dir=f_direc.relative_to(RunConfiguration.home).as_posix(), 
+                          mask=entry.mask,
                           in_plane=ip_distortion, delta_e = dE)
 
     print(f"The energy difference between images is :{dE:.3f} eV")
