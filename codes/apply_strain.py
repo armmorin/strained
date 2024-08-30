@@ -7,7 +7,7 @@ from ase.db import connect
 from ase.db.sqlite import SQLite3Database
 from ase.optimize import FIRE
 from ase.constraints import UnitCellFilter
-from perqueue.constants import INDEX_KW
+#from perqueue.constants import INDEX_KW
 from ase.io.trajectory import Trajectory
 from herculestools.dft import (
     RunConfiguration,
@@ -47,7 +47,7 @@ def main(vasp:dict = {}, **kwargs):
     atoms = entry.toatoms()
     
     # Take the in_plane from the INDEX_KW so that it matches the index of the strain_range
-    in_plane = kwargs['in_plane'][INDEX_KW]
+    in_plane = kwargs['in_plane']#[INDEX_KW]
         
     # Create new variables depending on the values of the strain. c = compressive, s = tensile, e = no strain
     ip_distortion = (1 + in_plane/100)
@@ -92,7 +92,7 @@ def main(vasp:dict = {}, **kwargs):
             atoms = Trajectory(trajectories[-1], 'r')[-1]
         
         # Lastly, we apply the mask to the structure
-        ucf = UnitCellFilter(atoms, mask=mask)
+        ucf = UnitCellFilter(atoms, mask=mask_dict[mask])
   
     # Create the VASP calculator
     calc = create_Vasp_calc(atoms, 'PBEsol', direc)
