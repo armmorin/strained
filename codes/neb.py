@@ -84,9 +84,9 @@ def main(db_id: Optional[int] = None,
     #print(final.get_atomic_numbers())
 
     # Order the endpoints correctly
-    initial.append(initial.pop(vf-1))
+    initial.append(initial.pop(vf))
     #print(initial.get_atomic_numbers())
-    final.append(final.pop(vi))
+    final.append(final.pop(vi-1))
     #print(final.get_atomic_numbers())
     
     # Create images and master directory

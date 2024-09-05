@@ -76,24 +76,24 @@ def main(vasp:dict = {}, **kwargs):
                         'uniaxial': (ip_distortion, 1, 1)}
     
     # From the reading of the mask keyword, we get the mask to apply to the structure.
-    for mask in mask_dict:
-        distortion = distortion_dict[mask]
-        
-        # If there are no previous trajectory files generated, we apply the strain from the beginning
-        if  counter == 0:
-            atoms.set_cell(atoms.get_cell() * distortion, scale_atoms=True)
-            atoms.set_pbc([True, True, True])
-            set_magnetic_moments(atoms)
+    mask_name = kwargs['mask']
+    distortion = distortion_dict[mask_name]
+    
+    # If there are no previous trajectory files generated, we apply the strain from the beginning
+    if  counter == 0:
+        atoms.set_cell(atoms.get_cell() * distortion, scale_atoms=True)
+        atoms.set_pbc([True, True, True])
+        set_magnetic_moments(atoms)
 
-        else:
-            # Sort the trajectories by the most recent
-            trajectories.sort(key=lambda x: x.stat().st_mtime)
-            # Get the last atoms object from the most recent trajectory
-            atoms = Trajectory(trajectories[-1], 'r')[-1]
-        
-        # Lastly, we apply the mask to the structure
-        ucf = UnitCellFilter(atoms, mask=mask_dict[mask])
-  
+    else:
+        # Sort the trajectories by the most recent
+        trajectories.sort(key=lambda x: x.stat().st_mtime)
+        # Get the last atoms object from the most recent trajectory
+        atoms = Trajectory(trajectories[-1], 'r')[-1]
+    
+    # Lastly, we apply the mask to the structure
+    ucf = UnitCellFilter(atoms, mask=mask_dict[mask_name])
+
     # Create the VASP calculator
     calc = create_Vasp_calc(atoms, 'PBEsol', direc)
     calc.set(**vasp,

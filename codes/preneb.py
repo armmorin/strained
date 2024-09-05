@@ -52,14 +52,12 @@ def start_run(atoms: Atoms | List[Atoms], direc: Path,
 
     except (POSCARError, IndexError):
         # Add a check to see if the system already has vacancies from the atoms object.
-        if len(atoms) == 32:
-            raise ValueError("The system is not a supercell")
-           
+        if len(atoms) == 128:
+            atoms.pop(vacancy)
         else:
             print(f"Restarting from supercell structure in {direc.name}")
 
         setup_run(atoms, direc, vasp)
-
         return atoms
 
     except (ReadError, FileNotFoundError, ParseError):
@@ -113,6 +111,10 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
     dops = entry.dopant
     name_components = en_name.split("_")
     db_name = "_".join(name_components[0:2])
+    mask = name_components[2]
+
+    initial_vac = 127
+    final_vac = 126
     
     # Take the in_plane
     in_plane = kwargs["in_plane"]
@@ -128,26 +130,30 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
         name_ip = f"e{in_plane}"
         
     # Set up directories:
-    name = db_name + "_" + kwargs['mask'] + "_" + name_ip
-    i_direc: Path = RunConfiguration.home / f"preNEB/{name}/init"
-    i_direc.mkdir(parents=True, exist_ok=True)
-    i_direc.relative_to(RunConfiguration.home)
-    f_direc: Path = i_direc.parent / f"{name}/final"
-    f_direc.mkdir(parents=True, exist_ok=True)
+    name = f"{db_name}_{mask}_{name_ip}"
+    direc = RunConfiguration.home / f"preNEB/{name}"
     
-    initial_vac = 30
-    init = start_run(atoms=atoms, direc=i_direc, vacancy=initial_vac)
-    if not Path(traj := f"{i_direc / name_ip}.traj").is_file():
+    i_direc= direc / "init"
+    i_direc.mkdir(parents=True, exist_ok=True)
+    ini_atoms = atoms.copy()
+    init = start_run(atoms=ini_atoms, direc=i_direc, vacancy=initial_vac)
+    i_traj = f"{i_direc / name}_init"
+    if not Path(traj := f"{i_traj}.traj").is_file():
         write(traj, init)
     i_energy = init.get_potential_energy()
     print(f"The energy of the initial structure is: {i_energy:.3f} eV")
 
-    final_vac = 31
-    final = start_run(atoms=atoms, direc=f_direc, vacancy=final_vac)
-    if not Path(traj := f"{f_direc / name_ip}.traj").is_file():
+    f_direc = direc / "final"
+    f_direc.mkdir(parents=True, exist_ok=True)
+    fin_atoms = atoms.copy()
+    final = start_run(atoms=fin_atoms, direc=f_direc, vacancy=final_vac)
+    f_traj = f"{f_direc / name}_final"
+    if not Path(traj := f"{f_traj}.traj").is_file():
         write(traj, final)
     f_energy = final.get_potential_energy()
     print(f"The energy of the final structure is: {f_energy:.3f} eV")
+
+    #raise NotImplementedError("The rest of the code is not yet implemented")
 
     # Get the energy difference from the two positions.
     dE = abs(i_energy - f_energy)
