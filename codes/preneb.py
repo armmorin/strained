@@ -9,6 +9,7 @@ from ase.db import connect
 from ase.db.sqlite import SQLite3Database
 from ase.io import read, write
 from typing import List
+import shutil
 
 from herculestools.dft import (
     RunConfiguration,
@@ -16,6 +17,7 @@ from herculestools.dft import (
     set_magnetic_moments,
 )
 
+here = Path(__file__).parent.parent
 c = Console()
 nnodes = int(environ['SLURM_NNODES'])
 ncore = int(environ['NCORE'])
@@ -153,7 +155,15 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
     f_energy = final.get_potential_energy()
     print(f"The energy of the final structure is: {f_energy:.3f} eV")
 
-    #raise NotImplementedError("The rest of the code is not yet implemented")
+    # Move the important files from scratch to home
+    for file in direc.glob("*"):
+        if file.is_file() and file.name != 'WAVECAR':
+            # Take the current path and move it to the home directory
+            file_parts = list(file.parts)
+            new_path = file_parts[:2] + ['energy'] + file_parts[3:]
+            new_file = Path(*new_path)
+            new_file.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(file, new_file)
 
     # Get the energy difference from the two positions.
     dE = abs(i_energy - f_energy)
@@ -170,6 +180,10 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
 
     print(f"The energy difference between images is :{dE:.3f} eV")
 
+    # Copy the database back to the home directory
+    home_db = here / "structures/hexag_perovs_strained.db"
+    shutil.copy(db_path, home_db)
+    
     return True, {
         'initial_id': iID,
         'final_id': fID,

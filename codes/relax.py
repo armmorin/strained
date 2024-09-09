@@ -7,6 +7,7 @@ from ase.db import connect
 from ase.db.sqlite import SQLite3Database
 from pathlib import Path
 from ase.io import read
+import shutil
 
 from herculestools.dft import (
     RunConfiguration,
@@ -14,6 +15,7 @@ from herculestools.dft import (
     set_magnetic_moments,
 )
 
+here = Path(__file__).parent.parent
 c = Console()
 nnodes = int(environ['SLURM_NNODES'])
 ncore = int(environ['NCORE'])
@@ -80,10 +82,24 @@ def main(rattle_std: float=0.03,
         atoms.calc = calc
         atoms.get_potential_energy()
 
+    # Move the important files from scratch to home
+    for file in direc.glob("*"):
+        if file.is_file() and file.name != 'WAVECAR':
+            # Take the current path and move it to the home directory
+            file_parts = list(file.parts)
+            new_path = file_parts[:2] + ['energy'] + file_parts[3:]
+            new_file = Path(*new_path)
+            new_file.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(file, new_file)
+            
     # Save the result to the database
     with connect(db_new_path) as db:
         DB_ID = update_or_write(db, atoms, name=name+"_r", dopant=dops, dir=direc.as_posix())
 
+    # Copy the database back to the home directory
+    home_db = here / "structures/hexag_perovs_strained.db"
+    shutil.copy(db_path, home_db)
+    
     return True, {'db_id': DB_ID}
 
 def update_or_write(db: SQLite3Database, atoms: Atoms, name: str, **kwargs):
