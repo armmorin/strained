@@ -72,6 +72,7 @@ def main(db_id: Optional[int] = None,
     neb_dir.mkdir(parents=True, exist_ok=True)
         
     # The trajectory file must be written only once.
+    trajs = []
     if not (start_traj := neb_dir / f"{name}_start.traj").exists():
     
         initial_row = db.get(iID)
@@ -111,7 +112,7 @@ def main(db_id: Optional[int] = None,
         neb = NEB(read(f"{traj}@-{N_images+2}:"), climb=climb, parallel=parallel,
                 method="improvedtangent", allow_shared_calculator=shared_calc)
 
-    counter = len(trajs) if trajs else 0
+    counter = len(trajs) + 1
     traj_file = neb_dir / f"{neb_dir.name}_{counter}{path}"
 
     if counter > 10:
