@@ -10,6 +10,7 @@ from ase.optimize import FIRE, BFGS
 from ase.neb import NEB, NEBTools
 from ase.io.trajectory import Trajectory
 import shutil
+from distutils.dir_util import copy_tree
 from herculestools.dft import (
     RunConfiguration,
     create_Vasp_calc,
@@ -70,12 +71,34 @@ def main(db_id: Optional[int] = None,
         name = '_'.join(names_list[:-1])
         mask = names_list[2]
 
-    neb_dir = Path(RunConfiguration.home / 'NEB' / f"{name}")
-    neb_dir.mkdir(parents=True, exist_ok=True)
-        
     # The trajectory file must be written only once.
     trajs = []
     path = "traj"
+    
+    #climb = kwargs.get('climb',False)
+    if climb == False:
+        neb_dir = RunConfiguration.home / 'NEB' / f"{name}"
+        neb_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        neb_dir = RunConfiguration.home / 'NEB' / f"{name}_CI"
+        neb_dir.mkdir(parents=True, exist_ok=True)
+        old_neb = RunConfiguration.home / 'NEB' / f"{name}"
+        wavecars = [wave.parent for wave in old_neb.rglob('WAVECAR') if wave.is_file() and wave.stat().st_size > 0]
+        print(wavecars)
+        trajs = [i for i in old_neb.glob(f"*{path}") if i.is_file() and i.stat().st_size > 0]
+        traj = max(trajs, key=lambda a: a.stat().st_mtime)
+        images = read(traj, index='-5:')
+        write(f'{neb_dir}/{name}_start.traj', images)
+        for wavecar in wavecars:
+            img_dir = neb_dir / wavecar.name
+            print(img_dir)
+            if len([neb for neb in img_dir.glob('WAVECAR')])==0:
+                print(wavecar.absolute())
+                #new_dir.mkdir(parents=True, exist_ok=True)
+                copy_tree(wavecar.as_posix(),img_dir.as_posix())
+            #else:
+            #    continue
+        
     if not (start_traj := neb_dir / f"{name}_start.{path}").exists():
     
         initial_row = db.get(iID)
@@ -117,16 +140,13 @@ def main(db_id: Optional[int] = None,
     counter = len(trajs) + 1
     traj_file = neb_dir / f"{neb_dir.name}_{counter}.{path}"
 
-    if counter > 10:
-        fmax += 0.005
-
-    c.log(f"Starting NEB calculation for {name}")
+    c.log(f"Starting NEB calculation for {name}. Using FIRE optimizer? {fire}. Using climbing image? {climb}")
 
     # Single point calculations for endpoints
-    initial = setup_run(initial, neb_dir / 'init', vasp)
+    initial = setup_run(neb.images[0], neb_dir / 'init', vasp)
     initial.get_potential_energy()
 
-    final = setup_run(final, neb_dir / 'final', vasp)
+    final = setup_run(neb.images[-1], neb_dir / 'final', vasp)
     final.get_potential_energy()
 
     # Create calculator for internal images
@@ -190,7 +210,7 @@ def main(db_id: Optional[int] = None,
     shutil.copy(db_path, home_db)
     
     c.log(f"The energy barrier is : {barrier:.3f}")
-    return True, {'trajectory': str(traj_file.relative_to(neb_dir)), 'neb_id': int(db_id)}
+    return True, {'trajectory': str(traj_file.relative_to(neb_dir)), 'neb_id': int(db_id), 'climb': True}
 
 def monitor_log(logfile: Path, n_last=10, threshold=1e-3) -> bool:
     """
