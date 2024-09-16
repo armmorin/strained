@@ -61,19 +61,22 @@ def main(db_id: Optional[int] = None,
         db_name = db.get(db_id).name
         names_list = db_name.split('_')
         name = '_'.join(names_list[:-1])
+        mask = names_list[2]
         iID = db.get(selection=f"name={name}_vi").id
         fID = db.get(selection=f"name={name}_vf").id
     else:
         db_name = db.get(iID).name
         names_list = db_name.split('_')
         name = '_'.join(names_list[:-1])
+        mask = names_list[2]
 
     neb_dir = Path(RunConfiguration.home / 'NEB' / f"{name}")
     neb_dir.mkdir(parents=True, exist_ok=True)
         
     # The trajectory file must be written only once.
     trajs = []
-    if not (start_traj := neb_dir / f"{name}_start.traj").exists():
+    path = "traj"
+    if not (start_traj := neb_dir / f"{name}_start.{path}").exists():
     
         initial_row = db.get(iID)
         print(iID, initial_row.formula, initial_row.natoms)
@@ -95,7 +98,6 @@ def main(db_id: Optional[int] = None,
 
     # Restart a calculation if possible
     else:
-        path = ".traj"
         trajs = [i for i in neb_dir.glob(f"*{path}") if i.is_file() and i.stat().st_size > 0]
         traj = max(trajs, key=lambda a: a.stat().st_mtime)
         # Use this trajectory to check for any newer WAVECAR files created after the trajectory's last modification
@@ -113,7 +115,7 @@ def main(db_id: Optional[int] = None,
                 method="improvedtangent", allow_shared_calculator=shared_calc)
 
     counter = len(trajs) + 1
-    traj_file = neb_dir / f"{neb_dir.name}_{counter}{path}"
+    traj_file = neb_dir / f"{neb_dir.name}_{counter}.{path}"
 
     if counter > 10:
         fmax += 0.005
@@ -180,7 +182,7 @@ def main(db_id: Optional[int] = None,
     nebtool = NEBTools(converged_traj)
     nebtool.plot_bands(label=str(neb_dir / neb_dir.stem))
 
-    db_id = update_or_write(db, ts_atoms, name=f"{name}_neb", dir=str(neb_dir),
+    db_id = update_or_write(db, ts_atoms, name=f"{name}_neb", dir=str(neb_dir), mask=mask,
                             forward_e=Ef, delta_e=dE, reverse_e=Er, barrier=barrier, neg_barrier=neg_barrier)
 
     # Copy the database back to the home directory

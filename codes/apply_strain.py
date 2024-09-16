@@ -1,4 +1,4 @@
-from ase.io import write
+from ase.io import write, read
 from os import environ
 from rich.console import Console
 from ase.atoms import Atoms
@@ -89,9 +89,10 @@ def main(vasp:dict = {}, **kwargs):
 
     else:
         # Sort the trajectories by the most recent
-        trajectories.sort(key=lambda x: x.stat().st_mtime)
+        #trajectories.sort(key=lambda x: x.stat().st_mtime)
         # Get the last atoms object from the most recent trajectory
-        atoms = Trajectory(trajectories[-1], 'r')[-1]
+        last_traj = max(trajectories, key=lambda x: x.stat().st_mtime)
+        atoms = read(last_traj)
     
     # Lastly, we apply the mask to the structure
     ucf = UnitCellFilter(atoms, mask=mask_dict[mask_name])

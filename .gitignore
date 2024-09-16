@@ -5,3 +5,4 @@ perqueue.runner.*
 plots/
 codes/test/
 relaxations/
+*.csv
