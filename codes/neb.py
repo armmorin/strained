@@ -183,7 +183,7 @@ def main(db_id: Optional[int] = None,
     nebtool.plot_bands(label=str(neb_dir / neb_dir.stem))
 
     db_id = update_or_write(db, ts_atoms, name=f"{name}_neb", dir=str(neb_dir), mask=mask,
-                            forward_e=Ef, delta_e=dE, reverse_e=Er, barrier=barrier, neg_barrier=neg_barrier)
+                            forward_e=Ef, delta_e=dE, reverse_e=Er, barrier=abs(barrier), neg_barrier=neg_barrier)
 
     # Copy the database back to the home directory
     home_db = here / "structures/hexag_perovs_strained.db"
