@@ -78,7 +78,6 @@ def main(db_id: Optional[int] = None,
     path = "traj"
     
     climb = kwargs.get('climb',climb)
-    c.log(f"Apply climbing image? {climb}")
     if climb == False:
         neb_dir = RunConfiguration.home / 'NEB' / name
         neb_dir.mkdir(parents=True, exist_ok=True)

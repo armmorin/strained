@@ -30,29 +30,28 @@ def find_id_from_name(name:str) -> list[int]:
 current_dir = Path(__file__).resolve().parent
 sys_name = argv[1].split(",")
 
-strain_range = np.linspace(-3, 3, WIDTH)
+strain_range = np.linspace(-5, 5, 2)
 masks = ['biaxial', 'uniaxial']
 
-# Calculate the NEB for the initial and final structures. Do one internal image, use climbing image. Save the barriers.
-neb = Task(current_dir / "neb.py", args=None, resources=NEB_RSC)
+# Calculate the NEB for the initial and final structures. Do one internal image, use climbing image. Save the barriers.    
 preneb = Task(current_dir / "preneb.py", args=None, resources=REL_RSC)
+neb = Task(current_dir / "neb.py", args=None, resources=NEB_RSC)
+cineb = Task(current_dir / "neb.py", args={'climb':True}, resources=NEB_RSC)
 
-swf = Workflow([preneb, neb])
-        
 for name in sys_name:
+    swf = Workflow([preneb, neb, cineb])
     db_id = find_id_from_name(name)[0]
     args = {"sys_id": db_id}
     args['name'] = name
     relax = Task(current_dir / "relax.py", args=args.copy(), resources=REL_RSC)  # Assign the system id to the task.
 
+    for mask, i in itertools.product(masks, strain_range):
+        args = {}
+        args["in_plane"]= i
+        args["mask"] = mask    
+        strain = Task(current_dir / "apply_strain.py", args=args.copy(), resources=REL_RSC)    
+        
+        wf = Workflow({relax: [], strain: [relax], swf: [strain]})
 
-for mask, i in itertools.product(masks, strain_range):
-    args = {}
-    args["in_plane"]= i
-    args["mask"] = mask    
-    strain = Task(current_dir / "apply_strain.py", args=args.copy(), resources=REL_RSC)    
-    
-    wf = Workflow({relax: [], strain: [relax], swf: [strain]})
-
-    with PersistentQueue() as pq:
-        pq.submit(wf)
+        with PersistentQueue() as pq:
+            pq.submit(wf)
