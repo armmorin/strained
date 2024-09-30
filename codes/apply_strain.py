@@ -61,13 +61,16 @@ def main(vasp:dict = {}, **kwargs):
     else:
         name_ip = f"e{in_plane}"
     
+    # From the reading of the mask keyword, we get the mask to apply to the structure.
+    mask_name = kwargs['mask']
+    
     # Create a new directory to save the new structures
-    job_dir = RunConfiguration.home / 'distorted' / db_name / kwargs["mask"] / name_ip
+    job_dir = Path(RunConfiguration.home / 'distorted' / db_name / mask_name / name_ip)
     job_dir.mkdir(parents=True, exist_ok=True)
     direc = job_dir.relative_to(RunConfiguration.home)
     
     # Check if there is not an already relaxed structure.
-    counter = len(trajectories := [traj for traj in (job_dir.glob("*.traj")) if traj.stat().st_size > 0])
+    counter = len(trajectories := [traj for traj in job_dir.glob("*.traj") if traj.stat().st_size > 0])
     
     # Apply a mask to the structure to relax. The mask can have different shapes.
     mask_dict = {'biaxial': (0,0,1,0,0,0),
@@ -76,9 +79,6 @@ def main(vasp:dict = {}, **kwargs):
     # Depending on the type of mask we apply the strain to the structure
     distortion_dict = {'biaxial': (ip_distortion, ip_distortion, 1),
                         'uniaxial': (ip_distortion, 1, 1)}
-    
-    # From the reading of the mask keyword, we get the mask to apply to the structure.
-    mask_name = kwargs['mask']
     distortion = distortion_dict[mask_name]
     
     # If there are no previous trajectory files generated, we apply the strain from the beginning
@@ -92,7 +92,7 @@ def main(vasp:dict = {}, **kwargs):
         #trajectories.sort(key=lambda x: x.stat().st_mtime)
         # Get the last atoms object from the most recent trajectory
         last_traj = max(trajectories, key=lambda x: x.stat().st_mtime)
-        atoms = read(last_traj)
+        atoms = read(last_traj, index=-1)
     
     # Lastly, we apply the mask to the structure
     ucf = UnitCellFilter(atoms, mask=mask_dict[mask_name])
@@ -106,13 +106,13 @@ def main(vasp:dict = {}, **kwargs):
     # Get the potential energy of the new structure
     traj_name = f"{direc}/{db_name}_{name_ip}_{counter}.traj"
     print(traj_name)
+    #atoms.get_potential_energy()
     traj = Trajectory(traj_name, 'w', atoms)
-    atoms.get_potential_energy()
     opt = FIRE(ucf, logfile=f"{direc}/{db_name}_{name_ip}.log",
                #dt=0.01, maxstep=0.05, dtmax=0.2, Nmin=15, finc=1.03, fdec=0.6
                )
     opt.attach(traj)
-    opt.run(fmax=0.03)
+    opt.run(fmax=0.05)
     
     # Move the important files from scratch to home
     for file in job_dir.glob("*"):

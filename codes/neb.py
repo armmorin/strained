@@ -57,6 +57,8 @@ def main(db_id: Optional[int] = None,
     vf = kwargs.get('final_vac',126)
 
     # Get the name of the structure from the database.
+    db_id = kwargs.get('neb_id', db_id)
+    c.log(f"NEB ID: {db_id}")
     if iID == 0 or fID == 0:
         c.log(f"No initial or final ID provided. Using db_id: {db_id}")
         db_name = db.get(db_id).name
@@ -75,14 +77,16 @@ def main(db_id: Optional[int] = None,
     trajs = []
     path = "traj"
     
-    #climb = kwargs.get('climb',False)
+    climb = kwargs.get('climb',climb)
+    c.log(f"Apply climbing image? {climb}")
     if climb == False:
-        neb_dir = RunConfiguration.home / 'NEB' / f"{name}"
+        neb_dir = RunConfiguration.home / 'NEB' / name
         neb_dir.mkdir(parents=True, exist_ok=True)
     else:
-        neb_dir = RunConfiguration.home / 'NEB' / f"{name}_CI"
+        old_neb = RunConfiguration.home / 'NEB' / name
+        name = f"{name}_CI"
+        neb_dir = RunConfiguration.home / 'NEB' / name
         neb_dir.mkdir(parents=True, exist_ok=True)
-        old_neb = RunConfiguration.home / 'NEB' / f"{name}"
         wavecars = [wave.parent for wave in old_neb.rglob('WAVECAR') if wave.is_file() and wave.stat().st_size > 0]
         print(wavecars)
         trajs = [i for i in old_neb.glob(f"*{path}") if i.is_file() and i.stat().st_size > 0]
@@ -174,6 +178,9 @@ def main(db_id: Optional[int] = None,
     dE = energies[-1] - energies[0]
     # barrier = max(energies) - min(energies)
 
+    nebtool = NEBTools(converged_traj)
+    nebtool.plot_bands(label=str(neb_dir / neb_dir.stem))
+
     # Move the important files from scratch to home
     for file in neb_dir.glob("*"):
         if file.is_file() and file.name != 'WAVECAR':
@@ -199,11 +206,8 @@ def main(db_id: Optional[int] = None,
         ts_atoms = converged_traj[energies.index(min(energies))]
 
     # Emax = max(Ef, Er)
-    nebtool = NEBTools(converged_traj)
-    nebtool.plot_bands(label=str(neb_dir / neb_dir.stem))
-
     db_id = update_or_write(db, ts_atoms, name=f"{name}_neb", dir=str(neb_dir), mask=mask,
-                            forward_e=Ef, delta_e=dE, reverse_e=Er, barrier=abs(barrier), neg_barrier=neg_barrier)
+                            forward_e=Ef, delta_e=dE, reverse_e=Er, barrier=abs(barrier), neg_barrier=neg_barrier, climb=climb)
 
     # Copy the database back to the home directory
     home_db = here / "structures/hexag_perovs_strained.db"
