@@ -6,9 +6,9 @@ from ase.db import connect
 from ase.db.sqlite import SQLite3Database
 from ase.optimize import FIRE
 from ase.constraints import UnitCellFilter
+from ase.io.trajectory import Trajectory
 from pathlib import Path
 import shutil
-from ase.io.trajectory import Trajectory
 from herculestools.dft import (
     RunConfiguration,
     create_Vasp_calc,
@@ -36,7 +36,7 @@ def main(vasp:dict = {}, **kwargs):
     db = connect(db_path)
     
     # We use the id of the entry in the database to get the structure
-    db_id = kwargs["db_id"]
+    db_id = kwargs.get("db_id",1)
     entry = db.get(db_id)
     en_name = entry.name
     dops = entry.dopant
@@ -82,10 +82,12 @@ def main(vasp:dict = {}, **kwargs):
     distortion = distortion_dict[mask_name]
     
     # If there are no previous trajectory files generated, we apply the strain from the beginning
+    traj_name = f"{job_dir}/{db_name}_{name_ip}_{counter+1}.traj"
     if  counter == 0:
         atoms.set_cell(atoms.get_cell() * distortion, scale_atoms=True)
         atoms.set_pbc([True, True, True])
         set_magnetic_moments(atoms)
+        print(traj_name)
 
     else:
         # Sort the trajectories by the most recent
@@ -94,23 +96,21 @@ def main(vasp:dict = {}, **kwargs):
         last_traj = max(trajectories, key=lambda x: x.stat().st_mtime)
         atoms = read(last_traj, index=-1)
     
-    # Lastly, we apply the mask to the structure
-    ucf = UnitCellFilter(atoms, mask=mask_dict[mask_name])
-
     # Create the VASP calculator
-    calc = create_Vasp_calc(atoms, 'PBEsol', direc)
+    calc = create_Vasp_calc(atoms, 'PBEsol', job_dir)
     calc.set(**vasp,
             kpar = nnodes,
             ncore = ncore)
     
+    # Lastly, we apply the mask to the structure
+    ucf = UnitCellFilter(atoms, mask=mask_dict[mask_name])
+    write(traj_name, atoms)
+
     # Get the potential energy of the new structure
-    traj_name = f"{direc}/{db_name}_{name_ip}_{counter}.traj"
-    print(traj_name)
-    #atoms.get_potential_energy()
-    traj = Trajectory(traj_name, 'w', atoms)
-    opt = FIRE(ucf, logfile=f"{direc}/{db_name}_{name_ip}.log",
+    opt = FIRE(ucf, logfile=f"{job_dir}/{db_name}_{name_ip}.log",
                #dt=0.01, maxstep=0.05, dtmax=0.2, Nmin=15, finc=1.03, fdec=0.6
                )
+    traj = Trajectory(atoms, 'r')
     opt.attach(traj)
     opt.run(fmax=0.05)
     
