@@ -36,7 +36,7 @@ def main(vasp:dict = {}, **kwargs):
     db = connect(db_path)
     
     # We use the id of the entry in the database to get the structure
-    db_id = kwargs.get("db_id",1)
+    db_id = 1 #kwargs.get("db_id",1)
     entry = db.get(db_id)
     en_name = entry.name
     dops = entry.dopant
@@ -104,13 +104,13 @@ def main(vasp:dict = {}, **kwargs):
     
     # Lastly, we apply the mask to the structure
     ucf = UnitCellFilter(atoms, mask=mask_dict[mask_name])
-    write(traj_name, atoms)
+    #write(traj_name, atoms)
 
     # Get the potential energy of the new structure
     opt = FIRE(ucf, logfile=f"{job_dir}/{db_name}_{name_ip}.log",
                #dt=0.01, maxstep=0.05, dtmax=0.2, Nmin=15, finc=1.03, fdec=0.6
                )
-    traj = Trajectory(atoms, 'r')
+    traj = Trajectory(traj_name, 'w', atoms)
     opt.attach(traj)
     opt.run(fmax=0.05)
     
