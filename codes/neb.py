@@ -204,10 +204,9 @@ def main(db_id: Optional[int] = None,
         barrier = max(energies) - min(energies)
         ts_atoms = converged_traj[energies.index(min(energies))]
 
-    # Emax = max(Ef, Er)
     db_id = update_or_write(db, ts_atoms, name=f"{name}_neb", dir=str(neb_dir), mask=mask,
-                            forward_e=Ef, delta_e=dE, reverse_e=Er, barrier=abs(barrier), neg_barrier=neg_barrier, climb=climb)
-
+                            forward_e=Ef, delta_e=dE, reverse_e=Er, barrier=barrier, neg_barrier=neg_barrier, climb=climb)
+    
     # Copy the database back to the home directory
     home_db = here / "structures/hexag_perovs_strained.db"
     shutil.copy(db_path, home_db)
