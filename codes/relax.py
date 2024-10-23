@@ -16,6 +16,8 @@ from herculestools.dft import (
 )
 
 here = Path(__file__).parent.parent
+home = RunConfiguration.home
+struc_dir = RunConfiguration.structures_dir
 c = Console()
 nnodes = int(environ['SLURM_NNODES'])
 ncore = int(environ['NCORE'])
@@ -25,23 +27,23 @@ def main(rattle_std: float=0.03,
          **kwargs) -> Tuple[bool, dict]:
     # Ask the PQ for database id
     
-    db_path = RunConfiguration.structures_dir / "hexag_perovs_wdiscards.db"
-    db_new_path = "structures/hexag_perovs_strained.db"
+    ref_db_path = "structures/hexag_perovs_wdiscards.db"
+    db_path = struc_dir/ "hexag_perovs_strained.db"
     
     db: SQLite3Database
     
     # Load the structure and extract fields
-    with connect(db_path) as db:
+    with connect(ref_db_path) as db:
         entry = db.get(kwargs['sys_id'])
         atoms: Atoms = entry.toatoms()
-        name = kwargs['name']
+        name = entry.name[:-2]
     
     # Take the dopant position from the last character of the name
     dops = int(name[-1])
     
     # Set up calculator and auxilliary things
     lets_run = True
-    direc: Path = RunConfiguration.home / f"relaxations/{name}"
+    direc: Path = home / f"relaxations/{name}"
     direc.mkdir(parents=True, exist_ok=True)
     
     if ((outcar := direc/"vasp.out")).exists():
@@ -93,8 +95,8 @@ def main(rattle_std: float=0.03,
             shutil.copy(file, new_file)
             
     # Save the result to the database
-    with connect(db_new_path) as db:
-        DB_ID = update_or_write(db, atoms, name=name+"_r", dopant=dops, dir=direc.as_posix())
+    with connect(db_path) as db:
+        DB_ID = update_or_write(db, atoms, name=name+"_r", dopant=dops, dir=direc.relative_to(home).as_posix())
 
     # Copy the database back to the home directory
     home_db = here / "structures/hexag_perovs_strained.db"

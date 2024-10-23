@@ -18,6 +18,8 @@ from herculestools.dft import (
 )
 
 here = Path(__file__).parent.parent
+home = RunConfiguration.home
+struc_dir = RunConfiguration.structures_dir
 c = Console()
 nnodes = int(environ['SLURM_NNODES'])
 ncore = int(environ['NCORE'])
@@ -101,7 +103,7 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
     """
     
     # Connect to the reference database
-    db_path= RunConfiguration.structures_dir / "hexag_perovs_strained.db"
+    db_path= struc_dir / "hexag_perovs_strained.db"
     db = connect(db_path)
     db: SQLite3Database
 
@@ -133,7 +135,7 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
         
     # Set up directories:
     name = f"{db_name}_{mask}_{name_ip}"
-    direc = RunConfiguration.home / f"preNEB/{name}"
+    direc = home / f"preNEB/{name}"
     
     i_direc= direc / "init"
     i_direc.mkdir(parents=True, exist_ok=True)
@@ -170,11 +172,11 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
 
     # Save the result to the database
     iID = update_or_write(db, init,  name+"_vi", dopant=dops, 
-                          dir=i_direc.relative_to(RunConfiguration.home).as_posix(), 
+                          dir=i_direc.relative_to(home).as_posix(), 
                           mask=entry.mask,
                           in_plane=ip_distortion, delta_e = dE)
     fID = update_or_write(db, final, name+"_vf", dopant=dops, 
-                          dir=f_direc.relative_to(RunConfiguration.home).as_posix(), 
+                          dir=f_direc.relative_to(home).as_posix(), 
                           mask=entry.mask,
                           in_plane=ip_distortion, delta_e = dE)
 

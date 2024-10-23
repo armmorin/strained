@@ -5,6 +5,9 @@ import pandas as pd
 from pathlib import Path
 from perqueue import PersistentQueue
 from perqueue.selection import Selection
+from herculestools.dft import RunConfiguration as RC
+
+structures_dir = RC.structures_dir
 
 def get_lowest_energy(initial_id: int, final_id: int):
     """ Get the lowest energy id from two entries in the database."""
@@ -19,7 +22,7 @@ def get_lowest_energy(initial_id: int, final_id: int):
 
 working_dir = Path.cwd()
 
-db = connect('structures/hexag_perovs_strained.db')
+db = connect( structures_dir/'hexag_perovs_strained_copy.db')
 
 df = pd.DataFrame(columns=['name', 'mask', 'x_strain', 'y_strain', 'z_strain', 'energy', 'barrier'])
 
@@ -105,8 +108,9 @@ axis_dict = {
 # Now we can loop over the different masks and plot different values.
 masks = df['mask'].unique()
 for mask in masks:
-    mask_df = df[df['mask'] == mask]
-    # Plot all values that have the same mask
+    # Plot all values that have the same mask and the equilibrium mask
+    mask_df = df[(df['mask'] == mask) | (df['mask'] == 'equilibrium')]
+    
     x_strain = mask_df['x_strain']
     y_strain = mask_df['y_strain']
     z_strain = mask_df['z_strain']
@@ -119,9 +123,9 @@ for mask in masks:
         for i, strain in enumerate([x_strain, y_strain, z_strain]):
             ax[i].plot(strain, y, 'o', label=f'{axis_dict[i]} strain')
             ax[i].set_xlabel(f'{mask} {axis_dict[i]} strain (%)')
-            x_fit = np.linspace(strain.min(), strain.max(), 100)
-            y_fit = np.polyval(np.polyfit(strain, y, 2), x_fit)
-            ax[i].plot(x_fit, y_fit, label=f'{axis_dict[i]} fit')
+            # x_fit = np.linspace(strain.min(), strain.max(), 100)
+            # y_fit = np.polyval(np.polyfit(strain, y, 2), x_fit)
+            # ax[i].plot(x_fit, y_fit, label=f'{axis_dict[i]} fit')
             ax[i].grid()
             ax[i].legend()
             

@@ -19,6 +19,8 @@ from herculestools.dft import (
 )
 
 here = Path(__file__).resolve().parent.parent
+struct_dir = RunConfiguration.structures_dir
+home = RunConfiguration.home
 
 c = Console()
 nnodes = int(environ['SLURM_NNODES'])
@@ -48,7 +50,7 @@ def main(db_id: Optional[int] = None,
     shared_calc = not parallel
 
     # Database connection
-    db_path = RunConfiguration.structures_dir / "hexag_perovs_strained.db"
+    db_path = struct_dir / "hexag_perovs_strained.db"
     db: SQLite3Database = connect(db_path)
 
     iID = kwargs.get('initial_id', 0)
@@ -79,12 +81,12 @@ def main(db_id: Optional[int] = None,
     
     climb = kwargs.get('climb',climb)
     if climb == False:
-        neb_dir = RunConfiguration.home / 'NEB' / name
+        neb_dir = home / 'NEB' / name
         neb_dir.mkdir(parents=True, exist_ok=True)
     else:
-        old_neb = RunConfiguration.home / 'NEB' / name
+        old_neb = home / 'NEB' / name
         name = f"{name}_CI"
-        neb_dir = RunConfiguration.home / 'NEB' / name
+        neb_dir = home / 'NEB' / name
         neb_dir.mkdir(parents=True, exist_ok=True)
         wavecars = [wave.parent for wave in old_neb.rglob('WAVECAR') if wave.is_file() and wave.stat().st_size > 0]
         print(wavecars)
@@ -204,7 +206,7 @@ def main(db_id: Optional[int] = None,
         barrier = max(energies) - min(energies)
         ts_atoms = converged_traj[energies.index(min(energies))]
 
-    db_id = update_or_write(db, ts_atoms, name=f"{name}_neb", dir=str(neb_dir), mask=mask,
+    db_id = update_or_write(db, ts_atoms, name=f"{name}_neb", dir=neb_dir.relative_to(home).as_posix(), mask=mask,
                             forward_e=Ef, delta_e=dE, reverse_e=Er, barrier=barrier, neg_barrier=neg_barrier, climb=climb)
     
     # Copy the database back to the home directory

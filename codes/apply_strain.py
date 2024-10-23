@@ -7,36 +7,47 @@ from ase.db.sqlite import SQLite3Database
 from ase.optimize import FIRE
 from ase.constraints import UnitCellFilter
 from ase.io.trajectory import Trajectory
+from perqueue.constants import INDEX_KW
+import numpy as np
 from pathlib import Path
 import shutil
 from herculestools.dft import (
-    RunConfiguration,
+    RunConfiguration as RC,
     create_Vasp_calc,
     set_magnetic_moments
 )
 
 here = Path(__file__).parent.parent
+home = RC.home
+struc_dir = RC.structures_dir
 
 c = Console()
 nnodes = int(environ['SLURM_NNODES'])
 ncore = int(environ['NCORE'])
 
-def main(vasp:dict = {}, **kwargs):
+def main(strain_list : list[float], mask_list : list[str], shape: tuple[int], vasp:dict = {}, **kwargs):
 
     """
     This function takes an entry from the database, creates a supercell with a given in-plane strain, 
     and relaxes the structure in the out-of-plane direction by applying a mask to the structure.
     """
-
+    pq_index, = kwargs[INDEX_KW]
+    i_mag, j_dir = np.unravel_index(pq_index, shape)
+    
+    strain = strain_list[i_mag]
+    mask = mask_list[j_dir]
+    
+    print(f"Applying {strain} {mask} strain to DB ID:{db_id}")
+    
     # Load the configuration
-    db_path = RunConfiguration.structures_dir / "hexag_perovs_strained.db"
+    db_path = struc_dir / "hexag_perovs_strained.db"
     db: SQLite3Database
 
     # Connect to the database
     db = connect(db_path)
     
     # We use the id of the entry in the database to get the structure
-    db_id = 1 #kwargs.get("db_id",1)
+    db_id = kwargs.get("db_id",1)
     entry = db.get(db_id)
     en_name = entry.name
     dops = entry.dopant
@@ -65,20 +76,24 @@ def main(vasp:dict = {}, **kwargs):
     mask_name = kwargs['mask']
     
     # Create a new directory to save the new structures
-    job_dir = Path(RunConfiguration.home / 'distorted' / db_name / mask_name / name_ip)
+    job_dir = home / 'distorted' / db_name / mask_name / name_ip
     job_dir.mkdir(parents=True, exist_ok=True)
-    direc = job_dir.relative_to(RunConfiguration.home)
+    direc = job_dir.relative_to(home)
     
     # Check if there is not an already relaxed structure.
     counter = len(trajectories := [traj for traj in job_dir.glob("*.traj") if traj.stat().st_size > 0])
     
     # Apply a mask to the structure to relax. The mask can have different shapes.
     mask_dict = {'biaxial': (0,0,1,0,0,0),
-            'uniaxial': (0,1,1,0,0,0)}
+            'x_axis': (0,1,1,0,0,0),
+            'y_axis': (1,0,1,0,0,0),
+            }
     
     # Depending on the type of mask we apply the strain to the structure
     distortion_dict = {'biaxial': (ip_distortion, ip_distortion, 1),
-                        'uniaxial': (ip_distortion, 1, 1)}
+                        'x_axis': (ip_distortion, 1, 1),
+                        'y_axis': (1, ip_distortion, 1),
+                        }
     distortion = distortion_dict[mask_name]
     
     # If there are no previous trajectory files generated, we apply the strain from the beginning
@@ -131,7 +146,7 @@ def main(vasp:dict = {}, **kwargs):
     home_db = here / "structures/hexag_perovs_strained.db"
     shutil.copy(db_path, home_db)
     
-    return True, {"db_id": new_id, "in_plane": in_plane}
+    return True, {"db_id": new_id, "in_plane": in_plane, "mask": mask_name}
 
 def update_or_write(db: SQLite3Database, atoms: Atoms, name: str, **kwargs):
     if db.count(name=name) > 0:
