@@ -1,8 +1,11 @@
 distorted/
 preNEB/
 NEB/
+CINEB/
 perqueue.runner.*
 plots/
 codes/test/
 relaxations/
 *.csv
+*.png
+*.txt

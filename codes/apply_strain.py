@@ -25,7 +25,7 @@ c = Console()
 nnodes = int(environ['SLURM_NNODES'])
 ncore = int(environ['NCORE'])
 
-def main(strain_list : list[float], mask_list : list[str], shape: tuple[int], vasp:dict = {}, **kwargs):
+def main(db_id: int,strain_list : list[float], mask_list : list[str], shape: tuple[int], vasp:dict = {}, **kwargs):
 
     """
     This function takes an entry from the database, creates a supercell with a given in-plane strain, 
@@ -34,10 +34,11 @@ def main(strain_list : list[float], mask_list : list[str], shape: tuple[int], va
     pq_index, = kwargs[INDEX_KW]
     i_mag, j_dir = np.unravel_index(pq_index, shape)
     
-    strain = strain_list[i_mag]
-    mask = mask_list[j_dir]
+    in_plane = strain_list[i_mag]
+    mask_name = mask_list[j_dir]
+    db_id = db_id
     
-    print(f"Applying {strain} {mask} strain to DB ID:{db_id}")
+    c.log(f"Applying {in_plane}% strain on the {mask_name} to DB ID:{db_id}")
     
     # Load the configuration
     db_path = struc_dir / "hexag_perovs_strained.db"
@@ -47,7 +48,6 @@ def main(strain_list : list[float], mask_list : list[str], shape: tuple[int], va
     db = connect(db_path)
     
     # We use the id of the entry in the database to get the structure
-    db_id = kwargs.get("db_id",1)
     entry = db.get(db_id)
     en_name = entry.name
     dops = entry.dopant
@@ -56,12 +56,10 @@ def main(strain_list : list[float], mask_list : list[str], shape: tuple[int], va
     name_components = en_name.split("_")
     
     # Get the new name of the job with the first two components of the name
-    db_name = "_".join(name_components[0:2])
+    db_name = "_".join(name_components[:2])
     atoms = entry.toatoms()
-    
-    # Take the in_plane from the INDEX_KW so that it matches the index of the strain_range
-    in_plane = kwargs['in_plane']#[INDEX_KW]
-        
+    c.log(f"Reading the structure from the database with ID:{db_id} and name:{db_name}")
+       
     # Create new variables depending on the values of the strain. c = compressive, s = tensile, e = no strain
     ip_distortion = (1 + in_plane/100)
     in_plane = int(in_plane)
@@ -72,37 +70,35 @@ def main(strain_list : list[float], mask_list : list[str], shape: tuple[int], va
     else:
         name_ip = f"e{in_plane}"
     
-    # From the reading of the mask keyword, we get the mask to apply to the structure.
-    mask_name = kwargs['mask']
-    
     # Create a new directory to save the new structures
     job_dir = home / 'distorted' / db_name / mask_name / name_ip
     job_dir.mkdir(parents=True, exist_ok=True)
     direc = job_dir.relative_to(home)
+    c.log(f"Working in {direc}")
     
     # Check if there is not an already relaxed structure.
     counter = len(trajectories := [traj for traj in job_dir.glob("*.traj") if traj.stat().st_size > 0])
     
     # Apply a mask to the structure to relax. The mask can have different shapes.
     mask_dict = {'biaxial': (0,0,1,0,0,0),
-            'x_axis': (0,1,1,0,0,0),
-            'y_axis': (1,0,1,0,0,0),
-            }
-    
+                'x_axis': (0,1,1,0,0,0),
+                'y_axis': (1,0,1,0,0,0),
+                }
+        
     # Depending on the type of mask we apply the strain to the structure
     distortion_dict = {'biaxial': (ip_distortion, ip_distortion, 1),
                         'x_axis': (ip_distortion, 1, 1),
                         'y_axis': (1, ip_distortion, 1),
                         }
     distortion = distortion_dict[mask_name]
+    c.log(f"Applying {mask_name} mask to the structure with {in_plane}% in-plane strain.")
     
     # If there are no previous trajectory files generated, we apply the strain from the beginning
-    traj_name = f"{job_dir}/{db_name}_{name_ip}_{counter+1}.traj"
+    traj_name = f"{job_dir.as_posix()}/{db_name}_{name_ip}_{counter+1}.traj"
     if  counter == 0:
         atoms.set_cell(atoms.get_cell() * distortion, scale_atoms=True)
         atoms.set_pbc([True, True, True])
-        set_magnetic_moments(atoms)
-        print(traj_name)
+        c.log(f"First count. The trajectory file {traj_name} was created.")
 
     else:
         # Sort the trajectories by the most recent
@@ -110,24 +106,31 @@ def main(strain_list : list[float], mask_list : list[str], shape: tuple[int], va
         # Get the last atoms object from the most recent trajectory
         last_traj = max(trajectories, key=lambda x: x.stat().st_mtime)
         atoms = read(last_traj, index=-1)
-    
+        c.log(f"Reading the last structure from the trajectory file {last_traj}")
+        
     # Create the VASP calculator
     calc = create_Vasp_calc(atoms, 'PBEsol', job_dir)
-    calc.set(**vasp,
-            kpar = nnodes,
-            ncore = ncore)
-    
+    set_magnetic_moments(atoms)
+    vasp_settings = {
+            "ibrion" : -1,
+            "nsw" : 1,
+            "ncore" : ncore,
+            }
+    vasp_settings.update(vasp)
+    calc.set(**vasp_settings)
     # Lastly, we apply the mask to the structure
     ucf = UnitCellFilter(atoms, mask=mask_dict[mask_name])
+    c.log(f"Applying the mask {mask_name} to the structure and relaxing it.")
     #write(traj_name, atoms)
 
     # Get the potential energy of the new structure
-    opt = FIRE(ucf, logfile=f"{job_dir}/{db_name}_{name_ip}.log",
+    opt = FIRE(ucf, logfile=f"{job_dir}/{db_name}_{name_ip}.log"
                #dt=0.01, maxstep=0.05, dtmax=0.2, Nmin=15, finc=1.03, fdec=0.6
                )
     traj = Trajectory(traj_name, 'w', atoms)
     opt.attach(traj)
     opt.run(fmax=0.05)
+    c.log(f"Relaxation for {db_name} with {mask_name} mask and {name_ip} strain has begun.")
     
     # Move the important files from scratch to home
     for file in job_dir.glob("*"):
@@ -139,8 +142,10 @@ def main(strain_list : list[float], mask_list : list[str], shape: tuple[int], va
             new_file.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(file, new_file)
     
+    c.log(f"Relaxation for {db_name} with {mask_name} mask and {name_ip} strain has been done. Files have been moved to {new_file.parent}")
     # Save the new structure in the new database
-    new_id = update_or_write(db, atoms, name=f"{db_name}_{kwargs['mask']}_{name_ip}", dopant=dops, in_plane=ip_distortion, mask=kwargs['mask'], dir=direc.as_posix())
+    new_id = update_or_write(db, atoms, name=f"{db_name}_{mask_name}_{name_ip}", dopant=dops, in_plane=ip_distortion, mask=mask_name, dir=direc.as_posix())
+    c.log(f"The database has been updated. The new id is {new_id}")
     
     # Copy the database back to the home directory
     home_db = here / "structures/hexag_perovs_strained.db"

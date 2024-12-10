@@ -3,6 +3,9 @@ from perqueue.selection import Selection
 from pathlib import Path
 from ase.db import connect
 from typing import Optional
+from rich.console import Console
+
+c = Console()
 
 calc_failed = "CalculationFailed"
 time_out = "DUE TO TIME LIMIT"
@@ -48,7 +51,7 @@ db = connect('structures/hexag_perovs_strained.db')
 with PersistentQueue() as pq:
     entries = pq.get_entries()
 
-s = Selection(states='f')
+s = Selection(ids=78)
 targets = s.filter(entries)
 codes = [pq.get_code(en.key) for en in targets]
 codes = list(set(codes))
@@ -76,24 +79,38 @@ def extract_data(entry) -> Optional[str]:
             neb = db.get(neb_id)
             neb_name = neb.name[:-4]
             return neb_name
+        elif 'db_id' in data:
+            db_id = data['db_id']
+            db_entry = db.get(db_id)
+            db_name = db_entry.name
+            return db_name
+        
     except TypeError:
         return None
 
 # Get the timed out and calculation failed jobs
 for en in targets:
+    print(f"Checking {en.key}")
     mq_id = en.mq_id
     pq_key = en.key
     code = pq.get_code(pq_key)
     status = en.state.serialize()
     # Getting the name of the last successful entry
     if extract_data(en) is not None:
+        print(f"Extracting data for {en.key}")
         base_name = extract_data(en)
     else:
         # Get the name of the entry from the ASE database using the args
         #print(f"Checking {en.key} with status {status}")
         args = pq.get_args(en.key)
-        base_name = args['name']
-
+        try:
+            db_id = args['db_id']
+        except KeyError:
+            db = connect('structures/hexag_perovs_wdiscards.db')
+            db_id = en.data['db_id']
+        nameparts = (db.get(db_id).name).split('_')
+        base_name = '_'.join(nameparts[:-1])
+        
     # Use the mq_id to get the directory of the calculation.
     error_file = Path(f"perqueue.runner.{mq_id}.err")
     backtrace = "Backtrace for this error:"

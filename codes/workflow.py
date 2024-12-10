@@ -32,13 +32,13 @@ sys_name = argv[1].split(",")
 # Calculate the NEB for the initial and final structures. After the conventional NEB has converged, use climbing image. Save the barriers.    
 args = {}
 for name in sys_name:
-    args['strain_list'] = [-3, -1.5, 1.5, 3, 5]#np.linspace(-5, 5, 2)
+    args['strain_list'] = [-5, -3, -1.5, 1.5, 3]#np.linspace(-5, 5, 2)
     args['mask_list'] = ['biaxial', 'x_axis', 'y_axis']
     args['shape'] = (len(args['strain_list']), len(args['mask_list']))
     db_id = find_id_from_name(name)[0]
-    #args["sys_id"] = db_id
     
-    relax = Task(name=f'relax_{name}', code=current_dir / "relax.py", args={"sys_id":db_id}, resources=REL_RSC)  # Assign the system id to the task.
+    relax = Task(name=f'relax_{name}', code=current_dir / "relax.py", args={"sys_id":db_id, "name":name}, resources="40:1:xeon40el8:50h")  # Assign the system id to the task.
+    #args.update({'name':name})
     strain = Task(name=f'strain_{name}',code=current_dir / "apply_strain.py", args=args, resources=REL_RSC)    
     
     preneb = Task(name= f'preNEB_{name}', code = current_dir / "preneb.py", args=None, resources=REL_RSC)
@@ -46,6 +46,7 @@ for name in sys_name:
     cineb = Task(name = f'CINEB_{name}', code = current_dir / "neb.py", args={'climb':True}, resources=NEB_RSC)
     swf = Workflow([preneb, neb, cineb])
 
+    #swg = StaticWidthGroup([strain, swf], width=math.prod(args['shape']))
     swg = StaticWidthGroup([strain], width=math.prod(args['shape']))
     
     wf = Workflow({relax: [], swg: [relax]})

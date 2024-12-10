@@ -8,7 +8,8 @@ from ase.db.sqlite import SQLite3Database
 from pathlib import Path
 from ase.io import read
 import shutil
-
+from xml.etree.ElementTree import ParseError
+from ase.calculators.calculator import ReadError
 from herculestools.dft import (
     RunConfiguration,
     create_VASP_calc,
@@ -19,7 +20,7 @@ here = Path(__file__).parent.parent
 home = RunConfiguration.home
 struc_dir = RunConfiguration.structures_dir
 c = Console()
-nnodes = int(environ['SLURM_NNODES'])
+#nnodes = int(environ['SLURM_NNODES'])
 ncore = int(environ['NCORE'])
 
 def main(rattle_std: float=0.03,
@@ -36,51 +37,63 @@ def main(rattle_std: float=0.03,
     with connect(ref_db_path) as db:
         entry = db.get(kwargs['sys_id'])
         atoms: Atoms = entry.toatoms()
-        name = entry.name[:-2]
+        nameparts = entry.name.split("_")
+        name = "_".join(nameparts[:2])
     
     # Take the dopant position from the last character of the name
     dops = int(name[-1])
+    c.log(f"Relaxing db entry {entry.id} with name {nameparts[0]} with the dopant in position {dops}.")
     
     # Set up calculator and auxilliary things
-    lets_run = True
     direc: Path = home / f"relaxations/{name}"
     direc.mkdir(parents=True, exist_ok=True)
+    c.log(f"Working in {direc}")
     
-    if ((outcar := direc/"vasp.out")).exists():
-        outcar_txt = outcar.read_text()
-        if "reached required accuracy - stopping structural energy minimisation" in outcar_txt:
-            lets_run = False
-    
-    if not ((fl := direc/'vasprun.xml')).exists():
-        # Create the supercell, and rattle all atoms but the specific oxygen
-        atoms = atoms.repeat([2, 2, 1])        
+    # Check if the atoms object is a supercell.
+    lets_run = True
+    if len(atoms) == 32:
+        # Generate the supercell
+        c.log(f"Generating supercell for {name}")
+        atoms = atoms.repeat([2, 2, 1])
         cn = FixAtoms([31])
         atoms.set_constraint(cn)
-        atoms.rattle(rattle_std)  # <--- Tolerance #1
+        atoms.rattle(rattle_std)
         atoms.set_constraint()
-        # \/ Parameter #3
         atoms[31].position += distance * atoms.cell[0] / atoms.cell.lengths()[0]
         atoms.wrap()
-
-    else:
+    
+    # Check if the relaxation has been done for the same structure
+    if ((outcar := direc/"vasp.out")).exists():
+        vasprun = direc/'vasprun.xml'
         try:
-            atoms = read(fl)
-        except:
-            pass
-
+            # Check if the number of atoms in the vasprun is the same as the number of atoms in the atoms object
+            if len(atoms) == len(read(vasprun)):
+                # Check if the relaxation has been done
+                    outcar_txt = outcar.read_text()
+                    if "reached required accuracy - stopping structural energy minimisation" in outcar_txt:
+                        c.log(f"Relaxation for {name} has already been done")
+                        lets_run = False
+        except (ReadError, ParseError):
+            c.log("Error reading the vasprun.xml file. Running the relaxation again.")
+            
+    # Set up the calculator
+    c.log(f"Setting up the calculator for {name}")
     calc = create_VASP_calc(atoms, 'PBEsol', direc.name, direc)
     set_magnetic_moments(atoms)
-    calc.set(
-        kpar = nnodes,
-        ncore = ncore,
-        ibrion = 2,
-        ediffg = -0.05,
-        nsw = 250,
-        **vasp)
+    vasp_settings = {
+            'ibrion' : 2,
+            'nsw' : 1,
+            'ediffg' : -0.05,
+            'nsw' : 250,
+            'ncore' : ncore,
+    }
+    vasp_settings.update(vasp)
+    calc.set(**vasp_settings)
     
     # Does the relaxation as well
     if lets_run:
         # Apply calculator to atoms
+        c.log(f"Relaxing {name}")
         atoms.calc = calc
         atoms.get_potential_energy()
 
@@ -93,18 +106,21 @@ def main(rattle_std: float=0.03,
             new_file = Path(*new_path)
             new_file.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(file, new_file)
-            
+    
+    c.log(f"Relaxation for {name} has been done. Files have been moved to {new_file.parent}")
+    
     # Save the result to the database
     with connect(db_path) as db:
         DB_ID = update_or_write(db, atoms, name=name+"_r", dopant=dops, dir=direc.relative_to(home).as_posix())
-
+    
+    c.log(f"The database has been updated. The new id is {DB_ID}")
     # Copy the database back to the home directory
     home_db = here / "structures/hexag_perovs_strained.db"
     shutil.copy(db_path, home_db)
     
     return True, {'db_id': DB_ID}
 
-def update_or_write(db: SQLite3Database, atoms: Atoms, name: str, **kwargs):
+def update_or_write(db: SQLite3Database, atoms: Atoms, name: str, **kwargs) -> int:
     if db.count(name=name) > 0:
         ID = next(db.select(name=name)).id
         db.update(ID, atoms, name=name, **kwargs)

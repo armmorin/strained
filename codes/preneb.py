@@ -21,7 +21,7 @@ here = Path(__file__).parent.parent
 home = RunConfiguration.home
 struc_dir = RunConfiguration.structures_dir
 c = Console()
-nnodes = int(environ['SLURM_NNODES'])
+#nnodes = int(environ['SLURM_NNODES'])
 ncore = int(environ['NCORE'])
 
 def read_poscar(poscar: Path) -> Atoms | None:
@@ -78,13 +78,16 @@ def setup_run(atoms: Atoms | List[Atoms], direc: Path, vacancy: int, vasp: dict 
     
     set_magnetic_moments(atoms)
     calc = create_Vasp_calc(atoms, 'PBEsol', direc)
-    calc.set(**vasp,
-            ediffg=-0.05,
-            ibrion=2,
-            nsw=250,
-            kpar=nnodes,
-            ncore=ncore)
-
+    vasp_settings = {
+            'ibrion' : 2,
+            'nsw' : 1,
+            'ediffg' : -0.05,
+            'nsw' : 250,
+            'ncore' : ncore,
+    }
+    vasp_settings.update(vasp)
+    calc.set(**vasp_settings)
+    
     return atoms
 
 def update_or_write(db: SQLite3Database, atoms: Atoms, name: str, **kwargs):
@@ -115,7 +118,7 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
     dops = entry.dopant
     name_components = en_name.split("_")
     db_name = "_".join(name_components[0:2])
-    mask = name_components[2]
+    mask = entry.mask
 
     initial_vac = 127
     final_vac = 126
@@ -177,7 +180,7 @@ def main(**kwargs) -> Tuple[bool, Optional[dict]]:
                           in_plane=ip_distortion, delta_e = dE)
     fID = update_or_write(db, final, name+"_vf", dopant=dops, 
                           dir=f_direc.relative_to(home).as_posix(), 
-                          mask=entry.mask,
+                          mask=mask,
                           in_plane=ip_distortion, delta_e = dE)
 
     print(f"The energy difference between images is :{dE:.3f} eV")
