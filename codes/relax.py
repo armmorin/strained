@@ -54,7 +54,7 @@ def main(rattle_std: float=0.03,
     if len(atoms) == 32:
         # Generate the supercell
         c.log(f"Generating supercell for {name}")
-        atoms = atoms.repeat([2, 2, 1])
+        #atoms = atoms.repeat([2, 2, 1])
         cn = FixAtoms([31])
         atoms.set_constraint(cn)
         atoms.rattle(rattle_std)

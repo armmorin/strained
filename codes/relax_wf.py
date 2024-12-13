@@ -17,7 +17,6 @@ elif NCORES == 56:
 else:
     NODE = f"xeon{NODE}el8"
 NODE = "xeon56"
-NEB_RSC = f"{NCORES*NNODES}:1:{NODE}:50h"
 REL_RSC = f"{NCORES*NNODES}:1:{NODE}:50h"
 TEST_RSC = "48:1:xeon24el8_test:30m"
 
@@ -44,16 +43,10 @@ for name in sys_name:
     args['shape'] = (len(args['strain_list']), len(args['mask_list']))
     db_id = find_id_from_name(name)[0]
     
-    relax = Task(name=f'relax_{name}', code=current_dir / "relax.py", args={"sys_id":db_id, "name":name}, resources="40:1:xeon40el8:50h")  # Assign the system id to the task.
-    #args.update({'name':name})
+    relax = Task(name=f'relax_{name}', code=current_dir / "relax.py", args={"sys_id":db_id, "name":name}, resources=REL_RSC)  # Assign the system id to the task.
+    
     strain = Task(name=f'strain_{name}',code=current_dir / "apply_strain.py", args=args, resources=REL_RSC)    
     
-    preneb = Task(name= f'preNEB_{name}', code = current_dir / "preneb.py", args=None, resources=REL_RSC)
-    neb = Task(name= f'NEB_{name}', code = current_dir / "neb.py", args=None, resources=NEB_RSC)
-    cineb = Task(name = f'CINEB_{name}', code = current_dir / "neb.py", args={'climb':True}, resources=NEB_RSC)
-    swf = Workflow([preneb, neb, cineb])
-
-    #swg = StaticWidthGroup([strain, swf], width=math.prod(args['shape']))
     swg = StaticWidthGroup([strain], width=math.prod(args['shape']))
     
     wf = Workflow({relax: [], swg: [relax]})
