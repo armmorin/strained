@@ -10,6 +10,7 @@ from ase.db.sqlite import SQLite3Database
 from forcecurve import fit_images
 import numpy as np
 from ase.optimize import FIRE, BFGS
+from ase.constraints import FixAtoms
 from ase.neb import NEB, NEBTools
 import matplotlib.pyplot as plt
 from herculestools.dft import (
@@ -27,7 +28,7 @@ nnodes = int(environ['SLURM_NNODES'])
 ncore = int(environ['NCORE'])
 
 def main(db_id: Optional[int] = None,
-         N_images: int = 3, climb: bool = False, fmax: float = 0.05, parallel: bool = False,
+         N_images: int = 3, climb: bool = False, fmax: float = 0.05, parallel: bool = False, rattle: bool = False,
          fire: bool = True, vasp: dict = {}, **kwargs) -> Tuple[bool, Optional[dict]]:
     """
     Perform the main NEB (Nudged Elastic Band) calculation.
@@ -113,6 +114,16 @@ def main(db_id: Optional[int] = None,
             else:
                 continue
         images = read(traj.as_posix(),  index=f"-{N_images+2}:")
+        # If rattle is set to true, fix the atoms in the intermediate images and rattle the moving atom. 
+        if rattle:
+            for image in images[1:-1]:
+                # Fix the atoms in the image
+                image.set_constraint(FixAtoms(indices=[atom.index for atom in image if atom.index != vf]))
+                # Rattle the moving atom
+                image.rattle(0.005)
+                # Remove the constraint
+                image.set_constraint()
+                c.log(f"Rattled atom {vf} in the intermediate image {image.index}")
         c.log(f"trajectory file: {traj.stem} has {len(images)} images.")
         
         neb = NEB(images, climb=climb, parallel=parallel,

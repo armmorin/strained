@@ -129,7 +129,7 @@ def main(db_id: int,strain_list : list[float], mask_list : list[str], shape: tup
                )
     traj = Trajectory(traj_name, 'w', atoms)
     opt.attach(traj)
-    opt.run(fmax=0.05)
+    opt.run(fmax=0.01)
     c.log(f"Relaxation for {db_name} with {mask_name} mask and {name_ip} strain has begun.")
     
     # Move the important files from scratch to home
@@ -144,7 +144,7 @@ def main(db_id: int,strain_list : list[float], mask_list : list[str], shape: tup
     
     c.log(f"Relaxation for {db_name} with {mask_name} mask and {name_ip} strain has been done. Files have been moved to {new_file.parent}")
     # Save the new structure in the new database
-    new_id = update_or_write(db, atoms, name=f"{db_name}_{mask_name}_{name_ip}", dopant=dops, in_plane=ip_distortion, mask=mask_name, dir=direc.as_posix())
+    new_id = update_or_write(db, atoms, name=f"{db_name}_{mask_name}_{name_ip}", dopant=dops, in_plane=ip_distortion, mask=mask_name, dir=direc.as_posix(), jobtype='strain')
     c.log(f"The database has been updated. The new id is {new_id}")
     
     # Copy the database back to the home directory
