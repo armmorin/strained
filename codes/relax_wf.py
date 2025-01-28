@@ -43,8 +43,10 @@ for name in sys_name:
     args['vasp'] = {'symprec': 1e-09, 'isym': 0, 'algo': 'VeryFast'}
     relax = Task(name=f'relax_{name}', code=current_dir / "relax.py", args=args, resources=TEST_RSC)  # Assign the system id to the task.
     
-    args['strain_list'] = [-5, -3, -1.5, 1.5, 3]#np.linspace(-5, 5, 2)
-    args['mask_list'] = ['biaxial', 'x_axis', 'y_axis']
+    args['strain_list'] = [-.75, 0.75, 2.5]
+    #args['strain_list'] = [-5, -3, -1.5, 1.5, 3]#np.linspace(-5, 5, 2)
+    args['mask_list'] = ['biaxial']
+    #args['mask_list'] = ['biaxial', 'x_axis', 'y_axis']
     args['shape'] = (len(args['strain_list']), len(args['mask_list']))
     strain = Task(name=f'strain_{name}',code=current_dir / "apply_strain.py", args=args, resources=REL_RSC)    
     

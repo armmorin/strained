@@ -9,3 +9,5 @@ relaxations/
 *.csv
 *.png
 *.txt
+*.svg
+*.tar.gz

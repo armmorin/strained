@@ -115,16 +115,16 @@ def main(db_id: Optional[int] = None,
                 continue
         images = read(traj.as_posix(),  index=f"-{N_images+2}:")
         # If rattle is set to true, fix the atoms in the intermediate images and rattle the moving atom. 
-        if rattle:
-            for image in images[1:-1]:
-                # Fix the atoms in the image
-                image.set_constraint(FixAtoms(indices=[atom.index for atom in image if atom.index != vf]))
-                # Rattle the moving atom
-                image.rattle(0.005)
-                # Remove the constraint
-                image.set_constraint()
-                c.log(f"Rattled atom {vf} in the intermediate image {image.index}")
-        c.log(f"trajectory file: {traj.stem} has {len(images)} images.")
+        # if rattle:
+        #     for image in images[1:-1]:
+        #         # Fix the atoms in the image
+        #         image.set_constraint(FixAtoms(indices=[atom.index for atom in image if atom.index != vf]))
+        #         # Rattle the moving atom
+        #         image.rattle(0.005)
+        #         # Remove the constraint
+        #         image.set_constraint()
+        #         c.log(f"Rattled atom {vf} in the intermediate image {image.index}")
+        # c.log(f"trajectory file: {traj.stem} has {len(images)} images.")
         
         neb = NEB(images, climb=climb, parallel=parallel,
                 method="improvedtangent", allow_shared_calculator=shared_calc)
