@@ -51,7 +51,7 @@ db = connect('structures/hexag_perovs_strained.db')
 with PersistentQueue() as pq:
     entries = pq.get_entries()
 
-s = Selection(ids=78)
+s = Selection(ids=117)
 targets = s.filter(entries)
 codes = [pq.get_code(en.key) for en in targets]
 codes = list(set(codes))
