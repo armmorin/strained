@@ -5,6 +5,7 @@ NEB/
 CINEB/
 plots/
 relaxations/
+.pq_active-sqlite.db
 *.vasp
 *.csv
 *.png
@@ -36,3 +37,6 @@ codes/cleanup.py
 codes/test
 codes/apply_fit.py
 codes/get_structure.py
+structures/hexag_perovs_strained_copy.db
+.gitignore
+notebook.ipynb

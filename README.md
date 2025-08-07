@@ -55,6 +55,8 @@ This project employed *state-of-the-art* workflow management tools to investigat
 
   The different stages of the computational workflow, including *structure relaxation*, *vacancy formation energy calculations*, and *Nudged Elastic Band* (NEB) migration barrier calculations, were efficiently orchestrated and managed using [PerQueue](https://asm-dtu.gitlab.io/perqueue/). This enabled automation, dynamic control, and high-throughput execution of the computational tasks across HPC resources.
 
+  All of the calculation parameters can be found in the [project_config.cfg](https://github.com/armmorin/strained/project_config.cfg), which PerQueue takes to add to all jobs in the workflow.
+
 - **Calculation Process:**  
 
   - Oxygen vacancy formation energies were computed to assess the thermodynamic feasibility of vacancy creation under strain. 
