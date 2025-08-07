@@ -43,7 +43,8 @@ In summary, this work addresses the critical energy materials challenge of low-t
 
 ## 📝 Methodology
 
-This project employed *state-of-the-art* workflow management tools to investigate oxygen-ion migration in Ba7Nb4MoO20 hexagonal perovskites under strain from first-principles. The methodology can be summarized as follows:
+This project employed *state-of-the-art* workflow management tools to investigate oxygen-ion migration in Ba7Nb4MoO20 hexagonal perovskites under strain from first-principles.
+The methodology can be summarized as follows:
 
 - **Dataset and Systems:**  
   
@@ -69,7 +70,8 @@ This project employed *state-of-the-art* workflow management tools to investigat
 
 ## 📊 Visualizations
 
-**IN PROGRESS**
+![Energies of formation for the three configurations of Ba7Nb4MoO20.](https://github.com/armmorin/strained/blob/main/strained_perovskite_eof.pdf)
+![Migration barriers for the p1 configuration of Ba7Nb4MoO20 in the different strain directions.](https://github.com/armmorin/strained/blob/main/neb_energies_fit.pdf)
 
 ## 🤔 Interpretation
 
@@ -86,6 +88,8 @@ This work highlights **strain engineering as a key method for enhancing solid ox
   3.  [preNEB](https://github.com/armmorin/strained/blob/main/codes/preneb.py)
   4.  [NEB](https://github.com/armmorin/strained/blob/main/codes/neb.py)
   5.  CINEB, it uses the same script as the previous step, but the 'climbing image' tag is enabled.
+
+  At each step, the workflow manager retains some information to proceed, while other details are stored in the database for future use.
 
 - **Data Accessibility:**  
   Indicate where the input data, structural models, and results can be accessed. Mention the SQLite3 database managed through Atomic Simulation Environment (ASE) if you share it, or provide instructions on how to regenerate data (e.g., from crystal structure files).
@@ -105,9 +109,9 @@ This work highlights **strain engineering as a key method for enhancing solid ox
 
   After the workflow has finished with the calculation of the migration barriers, it is possible to jump in into every structure and analyze the evolution of their local environments, which happens through the [ce_nebs.py](https://github.com/armmorin/strained/blob/main/codes/ce_nebs.py) script. Here, we need to provide a few things like the name of the species at the A-site and the id of the migrating oxygen-ion, as well as a cutoff factor that defines the search limit for the metal-oxygen bonds.
 
-- **Optional: Expected Outcomes:**  
+- **Expected Outcomes:**  
   
-  A CSV file will be generated once the ce_nebs.py script is run, together with plots of the evolution of local coordination environments for each of the structures.
+  A CSV file will be generated once the `ce_nebs.py` script is run, together with plots of the evolution of local coordination environments for each of the structures.
 
 ## 🙏 References / Data Availability
 
