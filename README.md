@@ -79,7 +79,7 @@ This work highlights **strain engineering as a key method for enhancing solid ox
 
 - **Code Availability:**  
 
-  The script that is managed by PerQueue is [Workflow](https://github.com/armmorin/strained/workflow.py). It first finds the name of the structure one wishes to work with from the DB, and then depending on the range and the direction of the strain applied, generates an array of values that will be applied on the structures to be calculated. From here, the logic of the workflow kicks in, its steps are:
+  The script that is managed by PerQueue is [Workflow](https://github.com/armmorin/strained/blob/main/workflow.py). It first finds the name of the structure one wishes to work with from the DB, and then depending on the range and the direction of the strain applied, generates an array of values that will be applied on the structures to be calculated. From here, the logic of the workflow kicks in, its steps are:
   
   1.  [Relaxation](https://github.com/armmorin/strained/blob/main/codes/relax.py)
   2.  [Apply Strain](https://github.com/armmorin/strained/blob/main/codes/apply_strain.py)
