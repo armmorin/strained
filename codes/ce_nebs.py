@@ -136,7 +136,7 @@ ionic_r_oxy = 1.4
 # Create the dataframe to store the coordination environment information
 coord_env_df = pd.DataFrame()
 
-strain_dict = {'s7': 1.070, 's5': 1.050, 's3': 1.030, 's2': 1.025, 's1': 1.015, 's0': 1.0075, 'e0': 1.000, 'c0':0.9925, 'c1': 0.985, 'c3': 0.970, 'c5': 0.950, 'c7': 0.930}
+strain_dict = {'s3': 1.030, 's2': 1.025, 's1': 1.015, 's0': 1.0075, 'e0': 1.000, 'c0':0.9925, 'c1': 0.985, 'c3': 0.970}
 
 # Loop over the database entries and extract the geometries
 db = connect(db_path)

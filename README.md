@@ -47,13 +47,13 @@ This project employed *state-of-the-art* workflow management tools to investigat
 
 - **Dataset and Systems:**  
   
-  Atomic-scale models of Ba7Nb4MoO20 were constructed based on experimentally known crystal structures. The structural information was stored and managed in a SQLite3 database, which was accessed and manipulated using the Atomic Simulation Environment (ASE) toolkit. 
+  Atomic-scale models of Ba7Nb4MoO20 were constructed based on experimentally known crystal structures. The structural information was stored and managed in a SQLite3 database, which was accessed and manipulated using the Atomic Simulation Environment ([ASE](https://wiki.fysik.dtu.dk/ase/)) toolkit. 
   
   Various strain states were simulated by applying uniaxial (along a or b axes) and biaxial (a and b axes together) in-plane strains, representing both compressive and tensile regimes within ranges relevant to epitaxial thin-film growth (strain levels up to approximately ±3%).
 
 - **Workflow Management**  
 
-  The different stages of the computational workflow, including *structure relaxation*, *vacancy formation energy calculations*, and *Nudged Elastic Band* (NEB) migration barrier calculations, were efficiently orchestrated and managed using PerQueue. This enabled automation, dynamic control, and high-throughput execution of the computational tasks across HPC resources.
+  The different stages of the computational workflow, including *structure relaxation*, *vacancy formation energy calculations*, and *Nudged Elastic Band* (NEB) migration barrier calculations, were efficiently orchestrated and managed using [PerQueue](https://asm-dtu.gitlab.io/perqueue/). This enabled automation, dynamic control, and high-throughput execution of the computational tasks across HPC resources.
 
 - **Calculation Process:**  
 
@@ -67,7 +67,7 @@ This project employed *state-of-the-art* workflow management tools to investigat
 
 ## 📊 Visualizations
 
-![IN PROGRESS!](link_to_key_plot.png)
+**IN PROGRESS**
 
 ## 🤔 Interpretation
 
@@ -75,13 +75,40 @@ This work highlights **strain engineering as a key method for enhancing solid ox
 
 ## 🗂️ Reproducibility
 
-[How could someone else check your results?  
-Is your notebook/code available? Is the data public?]: #
+- **Code Availability:**  
 
-**IN PROGRESS**
+  The script that is managed by PerQueue is [Workflow](https://github.com/armmorin/strained/workflow.py). It first finds the name of the structure one wishes to work with from the DB, and then depending on the range and the direction of the strain applied, generates an array of values that will be applied on the structures to be calculated. From here, the logic of the workflow kicks in, its steps are:
+  
+  1.  [Relaxation](https://github.com/armmorin/strained/workflow.py/relax.py)
+  2.  [Apply Strain](https://github.com/armmorin/strained/workflow.py/apply_strain.py)
+  3.  [preNEB](https://github.com/armmorin/strained/workflow.py/preneb.py)
+  4.  [NEB](https://github.com/armmorin/strained/workflow.py/neb.py)
+  5.  CINEB, it uses the same script as the previous step, but the 'climbing image' tag is enabled.
+
+- **Data Accessibility:**  
+  Indicate where the input data, structural models, and results can be accessed. Mention the SQLite3 database managed through Atomic Simulation Environment (ASE) if you share it, or provide instructions on how to regenerate data (e.g., from crystal structure files).
+
+- **Environment and Dependencies:**  
+  
+  Essential packages for this project were:
+  -  VASP v6.4.2 for the DFT calculations.
+  -  A virtual environment running with Python v3.11.3 (but any version >3.10 should do).
+  -  ASE v3.22.1
+  -  MyQueue v24.1.0
+  -  PerQueue v0.3.0a0 (Pre-release)
+  -  Pymatgen v2024.5.1
+  -  matplotlib v3.7.2
+ 
+- **Instructions to Reproduce Key Results:**  
+
+  After the workflow has finished with the calculation of the migration barriers, it is possible to jump in into every structure and analyze the evolution of their local environments, which happens through the [ce_nebs.py](https://github.com/armmorin/strained/workflow.py/ce_nebs.py) script. Here, we need to provide a few things like the name of the species at the A-site and the id of the migrating oxygen-ion, as well as a cutoff factor that defines the search limit for the metal-oxygen bonds.
+
+- **Optional: Expected Outcomes:**  
+  
+  A CSV file will be generated once the ce_nebs.py script is run, together with plots of the evolution of local coordination environments for each of the structures.
 
 ## 🙏 Acknowledgments / References
 
--  For more information on this work, you can refer to [Strain Engineering in Ba7Nb4MoO20 Hexagonal Perovskites for Enhanced Oxygen-Ion Conductivity](https://pubs.acs.org/doi/10.1021/acsmaterialslett.5c00520)
+-  For more information on this work, you can refer to the main article at: [Strain Engineering in Ba7Nb4MoO20 Hexagonal Perovskites for Enhanced Oxygen-Ion Conductivity](https://pubs.acs.org/doi/10.1021/acsmaterialslett.5c00520)
 
--  The database and structures are also publicly available at [Dataset for "Strain Engineering in Ba7Nb4MoO20 Hexagonal Perovskites for Enhanced Oxygen-Ion Conductivity"](https://doi.org/10.11583/DTU.28581416.v1)
+-  The database and structures are also publicly available at: [Dataset for "Strain Engineering in Ba7Nb4MoO20 Hexagonal Perovskites for Enhanced Oxygen-Ion Conductivity"](https://doi.org/10.11583/DTU.28581416.v1)

@@ -8,6 +8,8 @@ from perqueue.task_classes.task import Task
 from perqueue.task_classes.task_groups import Workflow, StaticWidthGroup
 import math
 
+# Define the resources for the different tasks.
+# The resources are defined based on the number of cores and nodes.
 NCORES = 56
 NNODES = 1 
 if NCORES == 96:
@@ -21,6 +23,7 @@ NEB_RSC = f"{NCORES*NNODES}:1:{NODE}:50h"
 REL_RSC = f"{NCORES*NNODES}:1:{NODE}:50h"
 TEST_RSC = "48:1:xeon24el8_test:30m"
 
+# Function to find the id of an entry in the database from its name.
 def find_id_from_name(name:str) -> list[int]:
     """ Find the id of the entry in the database from the name of the entry. """
     db = connect("structures/hexag_perovs_wdiscards.db")
@@ -36,26 +39,30 @@ def find_id_from_name(name:str) -> list[int]:
 current_dir = Path(__file__).resolve().parent
 sys_name = argv[1].split(",")
 
-# Calculate the NEB for the initial and final structures. After the conventional NEB has converged, use climbing image. Save the barriers.    
+# Calculate the NEB for the initial and final structures. 
+# After the conventional NEB has converged, use climbing image. 
+# Save the barriers.    
 args = {}
 for name in sys_name:
-    args['strain_list'] = [-5, -3, -1.5, 1.5, 3]#np.linspace(-5, 5, 2)
-    args['mask_list'] = ['biaxial', 'x_axis', 'y_axis']
-    args['shape'] = (len(args['strain_list']), len(args['mask_list']))
+    # Set up the run configuration.
+    args['strain_list'] = [-5, -3, -1.5, 1.5, 3] # Strain values in percent.
+    args['mask_list'] = ['biaxial', 'x_axis', 'y_axis'] # Mask types for the strain.
+    args['shape'] = (len(args['strain_list']), len(args['mask_list'])) # Shape of the strain list.
     db_id = find_id_from_name(name)[0]
     
+    # Define the tasks for the workflow.
     relax = Task(name=f'relax_{name}', code=current_dir / "relax.py", args={"sys_id":db_id, "name":name}, resources="40:1:xeon40el8:50h")  # Assign the system id to the task.
-    #args.update({'name':name})
-    strain = Task(name=f'strain_{name}',code=current_dir / "apply_strain.py", args=args, resources=REL_RSC)    
-    
-    preneb = Task(name= f'preNEB_{name}', code = current_dir / "preneb.py", args=None, resources=REL_RSC)
-    neb = Task(name= f'NEB_{name}', code = current_dir / "neb.py", args=None, resources=NEB_RSC)
-    cineb = Task(name = f'CINEB_{name}', code = current_dir / "neb.py", args={'climb':True}, resources=NEB_RSC)
-    swf = Workflow([preneb, neb, cineb])
+    strain = Task(name=f'strain_{name}',code=current_dir / "apply_strain.py", args=args, resources=REL_RSC)  # Apply strain to the relaxed structure.
+    preneb = Task(name= f'preNEB_{name}', code = current_dir / "preneb.py", args=None, resources=REL_RSC) # Prepare the NEB calculation.
+    neb = Task(name= f'NEB_{name}', code = current_dir / "neb.py", args=None, resources=NEB_RSC) # Perform the NEB calculation.
+    cineb = Task(name = f'CINEB_{name}', code = current_dir / "neb.py", args={'climb':True}, resources=NEB_RSC) # Perform the climbing image NEB calculation.
+    swf = Workflow([preneb, neb, cineb]) # Define a subworkflow for the NEB calculations.
 
-    #swg = StaticWidthGroup([strain, swf], width=math.prod(args['shape']))
+    # Define a StaticWidthGroup for the different arguments of the system.
+    # This will ensure that the tasks are executed in parallel for each strain and mask combination.
     swg = StaticWidthGroup([strain], width=math.prod(args['shape']))
     
+    # Define the workflow for the system.
     wf = Workflow({relax: [], swg: [relax]})
     
     with PersistentQueue() as pq:

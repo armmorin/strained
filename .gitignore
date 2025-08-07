@@ -4,7 +4,6 @@ preNEB/
 NEB/
 CINEB/
 plots/
-codes/test/
 relaxations/
 *.vasp
 *.csv
@@ -23,3 +22,17 @@ relaxations/
 *.dat
 molecules/
 oxygen/
+codes/search.py
+codes/error_handler.py
+codes/charges_driver.py
+codes/calc_charges.py
+codes/relax_wf.py
+codes/mini_workflow.py
+codes/get_dir.py
+codes/plot_strain.py
+codes/old_neb.py
+codes/create_vacancies.py
+codes/cleanup.py
+codes/test
+codes/apply_fit.py
+codes/get_structure.py
