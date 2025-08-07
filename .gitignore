@@ -37,6 +37,8 @@ codes/cleanup.py
 codes/test
 codes/apply_fit.py
 codes/get_structure.py
+structures/.hexag_perovs_strained.db
 structures/hexag_perovs_strained_copy.db
+structures/hexag_perovs_wdiscards.db
 .gitignore
 notebook.ipynb
