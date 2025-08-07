@@ -55,7 +55,7 @@ This project employed *state-of-the-art* workflow management tools to investigat
 
   The different stages of the computational workflow, including *structure relaxation*, *vacancy formation energy calculations*, and *Nudged Elastic Band* (NEB) migration barrier calculations, were efficiently orchestrated and managed using [PerQueue](https://asm-dtu.gitlab.io/perqueue/). This enabled automation, dynamic control, and high-throughput execution of the computational tasks across HPC resources.
 
-  All of the calculation parameters can be found in the [project_config.cfg](https://github.com/armmorin/strained/project_config.cfg), which PerQueue takes to add to all jobs in the workflow.
+  All of the calculation parameters can be found in the [project_config.cfg](https://github.com/armmorin/strained/blob/main/project_config.cfg), which PerQueue takes to add to all jobs in the workflow.
 
 - **Calculation Process:**  
 
@@ -81,10 +81,10 @@ This work highlights **strain engineering as a key method for enhancing solid ox
 
   The script that is managed by PerQueue is [Workflow](https://github.com/armmorin/strained/workflow.py). It first finds the name of the structure one wishes to work with from the DB, and then depending on the range and the direction of the strain applied, generates an array of values that will be applied on the structures to be calculated. From here, the logic of the workflow kicks in, its steps are:
   
-  1.  [Relaxation](https://github.com/armmorin/strained/workflow.py/relax.py)
-  2.  [Apply Strain](https://github.com/armmorin/strained/workflow.py/apply_strain.py)
-  3.  [preNEB](https://github.com/armmorin/strained/workflow.py/preneb.py)
-  4.  [NEB](https://github.com/armmorin/strained/workflow.py/neb.py)
+  1.  [Relaxation](https://github.com/armmorin/strained/blob/main/codes/relax.py)
+  2.  [Apply Strain](https://github.com/armmorin/strained/strained/blob/main/codes/apply_strain.py)
+  3.  [preNEB](https://github.com/armmorin/strained/blob/main/codes/preneb.py)
+  4.  [NEB](https://github.com/armmorin/strained/blob/main/codes/neb.py)
   5.  CINEB, it uses the same script as the previous step, but the 'climbing image' tag is enabled.
 
 - **Data Accessibility:**  
@@ -103,13 +103,13 @@ This work highlights **strain engineering as a key method for enhancing solid ox
  
 - **Instructions to Reproduce Key Results:**  
 
-  After the workflow has finished with the calculation of the migration barriers, it is possible to jump in into every structure and analyze the evolution of their local environments, which happens through the [ce_nebs.py](https://github.com/armmorin/strained/workflow.py/ce_nebs.py) script. Here, we need to provide a few things like the name of the species at the A-site and the id of the migrating oxygen-ion, as well as a cutoff factor that defines the search limit for the metal-oxygen bonds.
+  After the workflow has finished with the calculation of the migration barriers, it is possible to jump in into every structure and analyze the evolution of their local environments, which happens through the [ce_nebs.py](https://github.com/armmorin/strained/blob/main/codes/ce_nebs.py) script. Here, we need to provide a few things like the name of the species at the A-site and the id of the migrating oxygen-ion, as well as a cutoff factor that defines the search limit for the metal-oxygen bonds.
 
 - **Optional: Expected Outcomes:**  
   
   A CSV file will be generated once the ce_nebs.py script is run, together with plots of the evolution of local coordination environments for each of the structures.
 
-## 🙏 Acknowledgments / References
+## 🙏 References / Data Availability
 
 -  For more information on this work, you can refer to the main article at: [Strain Engineering in Ba7Nb4MoO20 Hexagonal Perovskites for Enhanced Oxygen-Ion Conductivity](https://pubs.acs.org/doi/10.1021/acsmaterialslett.5c00520)
 
