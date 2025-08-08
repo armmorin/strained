@@ -97,8 +97,8 @@ The findings from this project strongly suggest that **strain engineering is a v
 
 ## 🙏 References / Data Availability
 
--   **Main Publication:** For a detailed discussion of this work, please see the peer-reviewed article: [*Strain Engineering in Ba₇Nb₄MoO₂₀ Hexagonal Perovskites for Enhanced Oxygen-Ion Conductivity*](https://pubs.acs.org/doi/10.1021/acsmaterialslett.5c00520)
+-  **Main Publication:** For a detailed discussion of this work, please see the peer-reviewed article: [*Strain Engineering in Ba₇Nb₄MoO₂₀ Hexagonal Perovskites for Enhanced Oxygen-Ion Conductivity*](https://pubs.acs.org/doi/10.1021/acsmaterialslett.5c00520)
 
-The workflow manager used is described in: [PerQueue: Dynamic Workflow Manager for Materials Discovery.](https://doi.org/10.1039/D4DD00134F)
+-  The workflow manager used is described in: [PerQueue: Dynamic Workflow Manager for Materials Discovery.](https://doi.org/10.1039/D4DD00134F)
 
 -  The database and structures are also publicly available at: [*Dataset for" Strain Engineering in Ba₇Nb₄MoO₂₀ Hexagonal Perovskites for Enhanced Oxygen-Ion Conductivity"*](https://doi.org/10.11583/DTU.28581416.v1)
